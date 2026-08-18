@@ -1,0 +1,17 @@
+:root {
+  --screen-bg: #12141a;
+  --surface: #1c1f27;
+  --surface-2: #20242e;
+  --surface-3: #262a34;
+  --border: #2a2e38;
+  --border-soft: #20242e;
+  --text: #ededf2;
+  --text-dim: #9497a3;
+  --text-faint: #5c6070;
+  --danger: #ff5c72;
+
+  /* перезаписывается при смене режима (см. store/appStore.ts) */
+  --accent: #f2637a;
+  --accent-text: #ff93a5;
+  --accent-soft: rgba(242, 99, 122, 0.14);
+}
