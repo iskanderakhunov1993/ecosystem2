@@ -4,13 +4,21 @@
     {
       "name": "mira-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 4173
     },
     {
       "name": "mira-app",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "apps/mira"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "apps/mira"
+      ],
       "port": 5180
     }
   ]

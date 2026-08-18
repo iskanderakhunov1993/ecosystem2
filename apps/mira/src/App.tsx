@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import { OnboardingWizard } from "@/features/onboarding/OnboardingWizard";
 import { useAppStore } from "@/store/appStore";
 
@@ -20,5 +21,10 @@ export default function App() {
     );
   }
 
-  return onboarded ? <AppShell /> : <OnboardingWizard />;
+  return (
+    <>
+      {onboarded ? <AppShell /> : <OnboardingWizard />}
+      <PwaUpdatePrompt />
+    </>
+  );
 }
