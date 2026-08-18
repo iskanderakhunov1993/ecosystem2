@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { Card } from "@/components/Card";
 import { ConfidenceTag } from "@/components/ConfidenceTag";
-import { derive, formatDate, pluralRu } from "@/lib/derive";
+import { derive, formatDate, predictionUncertainty, pluralRu } from "@/lib/derive";
+import { detectCycleLengths } from "@/features/analytics/aggregations";
 import { useAppStore } from "@/store/appStore";
-import type { Mode, Profile } from "@/lib/types";
+import type { LogEvent, Mode, Profile } from "@/lib/types";
 import { computeConfidence } from "./computeConfidence";
 
 interface PredictionCard {
@@ -19,17 +20,25 @@ interface PredictionCard {
  * Сами значения считаются из профиля — они реальны с первого дня.
  * Честной здесь является метка уверенности, а не факт наличия числа.
  */
-function buildCards(mode: Mode, profile: Profile): PredictionCard[] {
+function buildCards(mode: Mode, profile: Profile, events: LogEvent[]): PredictionCard[] {
   const data = derive(mode, profile);
 
   switch (data.kind) {
     case "cycle": {
+      const cycleLengths = detectCycleLengths(events);
+      const uncertainty = predictionUncertainty(cycleLengths);
+      const rangeStart = new Date(data.nextPeriodDate.getTime() - uncertainty * 86_400_000);
+      const rangeEnd = new Date(data.nextPeriodDate.getTime() + uncertainty * 86_400_000);
       const cards: PredictionCard[] = [
         {
           id: "next-period",
           title: "Следующая менструация",
-          value: formatDate(data.nextPeriodDate),
-          detail: `Через ${data.daysToNextPeriod} ${pluralRu(data.daysToNextPeriod, "день", "дня", "дней")} при цикле ${data.cycleLen} дней.`,
+          value: `${formatDate(rangeStart)} – ${formatDate(rangeEnd)}`,
+          detail: `Ориентир — ${formatDate(data.nextPeriodDate)} (± ${uncertainty} ${pluralRu(uncertainty, "день", "дня", "дней")}), при цикле ${data.cycleLen} дней. ${
+            cycleLengths.length >= 3
+              ? "Окно сузилось по мере накопления истории циклов."
+              : "Окно сузится по мере отслеживания реальных циклов."
+          }`,
         },
         {
           id: "fertile",
@@ -119,7 +128,7 @@ export function PredictionsScreen() {
   const events = useAppStore((state) => state.logEvents[state.mode]);
 
   const confidence = useMemo(() => computeConfidence(events.length), [events.length]);
-  const cards = useMemo(() => buildCards(mode, profile), [mode, profile]);
+  const cards = useMemo(() => buildCards(mode, profile, events), [mode, profile, events]);
   const onlyQualitative = cards.length > 0 && cards.every((card) => card.noPrediction);
 
   return (

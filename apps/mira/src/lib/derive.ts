@@ -200,6 +200,19 @@ export function formatDayHeading(ts: number, now = Date.now()): string {
   return formatDate(ts);
 }
 
+/**
+ * Окно неопределённости прогноза месячных, дней в каждую сторону.
+ * Чем меньше отслеженных циклов и чем они разнообразнее по длине —
+ * тем шире окно. Перенесено из практики соседнего проекта (new-mira),
+ * где эта формула откалибрована на реальных данных.
+ */
+export function predictionUncertainty(cycleLengths: number[]): number {
+  if (cycleLengths.length === 0) return 3;
+  if (cycleLengths.length <= 2) return 2;
+  const spread = Math.max(...cycleLengths) - Math.min(...cycleLengths);
+  return Math.max(1, Math.ceil(spread / 2));
+}
+
 export function pluralRu(n: number, one: string, few: string, many: string): string {
   const mod10 = n % 10;
   const mod100 = n % 100;

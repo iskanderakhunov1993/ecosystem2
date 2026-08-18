@@ -1,11 +1,20 @@
 import { useMemo } from "react";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
+import { ConfidenceTag } from "@/components/ConfidenceTag";
 import { Icon } from "@/data/icons";
 import { QUICK_LOG } from "@/data/modes.config";
 import { formatDayHeading, pluralRu } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
+import type { ConfidenceTier } from "@/lib/types";
+import type { EvidenceTier } from "./cycleEvidence";
 import { PATTERN_THRESHOLD, computePatterns, patternTier, primaryPattern } from "./computePatterns";
+
+const EVIDENCE_TO_CONFIDENCE: Record<EvidenceTier, ConfidenceTier> = {
+  strong: "HIGH",
+  moderate: "MEDIUM",
+  first_signs: "LOW",
+};
 
 export function PatternsScreen() {
   const mode = useAppStore((state) => state.mode);
@@ -58,7 +67,12 @@ export function PatternsScreen() {
       )}
 
       {tier === "medium" && insight && (
-        <Card title="Первое наблюдение">
+        <Card
+          title="Первое наблюдение"
+          action={
+            insight.evidenceTier ? <ConfidenceTag tier={EVIDENCE_TO_CONFIDENCE[insight.evidenceTier]} /> : undefined
+          }
+        >
           <p className="text-[15px] font-medium leading-snug text-text">{insight.title}</p>
           <p className="mt-1.5 text-[13px] leading-snug text-text-dim">{insight.detail}</p>
         </Card>
@@ -74,7 +88,12 @@ export function PatternsScreen() {
             <ul className="space-y-4">
               {patterns.map((pattern) => (
                 <li key={pattern.id}>
-                  <p className="text-[15px] font-medium leading-snug text-text">{pattern.title}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[15px] font-medium leading-snug text-text">{pattern.title}</p>
+                    {pattern.evidenceTier && (
+                      <ConfidenceTag tier={EVIDENCE_TO_CONFIDENCE[pattern.evidenceTier]} />
+                    )}
+                  </div>
                   <p className="mt-1.5 text-[13px] leading-snug text-text-dim">{pattern.detail}</p>
                 </li>
               ))}

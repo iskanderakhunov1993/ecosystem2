@@ -2,9 +2,11 @@ import { useMemo } from "react";
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
 import { Ring } from "@/components/Ring";
+import { SafetyBanner } from "@/components/SafetyBanner";
 import { Icon } from "@/data/icons";
 import { MODE_LABELS, QUICK_LOG } from "@/data/modes.config";
 import { derive, formatDate, formatTime, pluralRu, startOfDay } from "@/lib/derive";
+import { evaluateSafety } from "@/lib/safety";
 import { useAppStore } from "@/store/appStore";
 import type { LogEvent, Mode, Profile, Session } from "@/lib/types";
 
@@ -120,6 +122,7 @@ export function TodayScreen() {
   const entries = useMemo(() => todaySnapshot(events, mode), [events, mode]);
   const sessionsToday = useMemo(() => todaySessions(sessions), [sessions]);
   const loggedChipIds = new Set(entries.map((entry) => entry.chipId));
+  const safetyAdvisories = useMemo(() => evaluateSafety(mode, events), [mode, events]);
 
   return (
     <div className="space-y-4">
@@ -145,6 +148,10 @@ export function TodayScreen() {
           </button>
         </div>
       )}
+
+      {safetyAdvisories.map((advisory) => (
+        <SafetyBanner key={advisory.id} advisory={advisory} />
+      ))}
 
       <section className="flex flex-col items-center rounded-card border border-border bg-surface px-4 py-6">
         <Ring

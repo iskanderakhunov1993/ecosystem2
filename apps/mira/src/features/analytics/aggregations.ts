@@ -70,7 +70,7 @@ export function chipFrequency(events: LogEvent[]): Map<string, number> {
  * запись flow после паузы в 15+ дней считается началом нового цикла.
  * Без таких данных длины циклов не считаются — и график остаётся пустым.
  */
-export function detectCycleLengths(events: LogEvent[]): number[] {
+export function detectCycleStarts(events: LogEvent[]): number[] {
   const flowDays = [
     ...new Set(
       events
@@ -84,7 +84,11 @@ export function detectCycleLengths(events: LogEvent[]): number[] {
     const previous = starts[starts.length - 1];
     if (previous === undefined || day - previous >= 15 * 86_400_000) starts.push(day);
   }
+  return starts;
+}
 
+export function detectCycleLengths(events: LogEvent[]): number[] {
+  const starts = detectCycleStarts(events);
   const lengths: number[] = [];
   for (let i = 1; i < starts.length; i += 1) {
     lengths.push(Math.round((starts[i] - starts[i - 1]) / 86_400_000));
