@@ -7,18 +7,20 @@ import { stageOf, type TabId } from "@/lib/types";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { CycleScreen } from "@/features/cycle/CycleScreen";
 import { LogSheet } from "@/features/today/LogSheet";
-import { WorkoutSheet } from "@/features/today/WorkoutSheet";
+import { WorkoutScreen } from "@/features/today/WorkoutScreen";
 import { LifeStageGate } from "@/features/life-stage-gate/LifeStageGate";
 import { SettingsSheet } from "@/features/settings/SettingsSheet";
 
 const TAB_ICONS: Record<TabId, IconName> = {
   today: "today",
   cycle: "analytics",
+  activity: "workout",
 };
 
 const SCREENS: Record<TabId, () => JSX.Element> = {
   today: TodayScreen,
   cycle: CycleScreen,
+  activity: WorkoutScreen,
 };
 
 export function AppShell() {
@@ -30,7 +32,6 @@ export function AppShell() {
   const closeSheet = useAppStore((state) => state.closeSheet);
   const anonymous = useAppStore((state) => state.privacy.anonymousMode);
   const persistent = useAppStore((state) => state.persistent);
-  const events = useAppStore((state) => state.logEvents[state.mode]);
   const stage = useAppStore((state) => stageOf(state.profile[state.mode]));
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export function AppShell() {
   const tabs: { id: TabId; label: string; icon: IconName }[] = [
     { id: "today", label: "Сегодня", icon: TAB_ICONS.today },
     { id: "cycle", label: getCycleTabLabel(mode, stage), icon: TAB_ICONS.cycle },
+    { id: "activity", label: "Тренировка", icon: TAB_ICONS.activity },
   ];
 
   return (
@@ -111,9 +113,6 @@ export function AppShell() {
           date={sheet.date}
           onClose={closeSheet}
         />
-      )}
-      {sheet?.type === "activity" && (
-        <WorkoutSheet mode={mode} stage={stage} events={events} onClose={closeSheet} />
       )}
       {sheet?.type === "gate" && <LifeStageGate onClose={closeSheet} />}
       {sheet?.type === "settings" && <SettingsSheet onClose={closeSheet} />}

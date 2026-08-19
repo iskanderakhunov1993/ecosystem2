@@ -401,25 +401,6 @@ export function TodayScreen() {
           </ul>
         )}
       </Card>
-
-      <button
-        type="button"
-        onClick={() => openSheet({ type: "activity" })}
-        className="flex w-full items-center gap-3.5 rounded-card border border-border bg-surface p-4 text-left transition active:scale-[0.99]"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-text">
-          <Icon name="workout" size={20} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium text-text">Тренировка или медитация</span>
-          <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">
-            Подбор по сегодняшнему самочувствию
-          </span>
-        </span>
-        <span className="text-text-faint">
-          <Icon name="chevron" size={18} />
-        </span>
-      </button>
     </div>
   );
 }

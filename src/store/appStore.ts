@@ -18,7 +18,6 @@ export type SheetState =
   | { type: "log"; chipId: string; date?: number }
   | { type: "gate" }
   | { type: "settings" }
-  | { type: "activity" }
   | null;
 
 interface AppState extends AppData {

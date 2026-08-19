@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { BottomSheet } from "@/components/BottomSheet";
 import { Button } from "@/components/Button";
 import { FieldLabel } from "@/components/inputs";
 import { Icon } from "@/data/icons";
@@ -12,7 +11,7 @@ import {
   type LocationId,
 } from "@/data/modes.config";
 import { useAppStore } from "@/store/appStore";
-import type { LogEvent, Mode, Stage } from "@/lib/types";
+import { stageOf } from "@/lib/types";
 import { getReadiness, intensityFor, isSafeStage } from "./readiness";
 import { MeditationTab } from "./MeditationTab";
 
@@ -27,15 +26,18 @@ interface ExerciseState extends ExerciseTemplate {
   note: string;
 }
 
-interface WorkoutSheetProps {
-  mode: Mode;
-  stage?: Stage;
-  events: LogEvent[];
-  onClose: () => void;
-}
-
-export function WorkoutSheet({ mode, stage, events, onClose }: WorkoutSheetProps) {
+/**
+ * «Тренировка» — своя частота (открывают заодно с ежедневной отметкой, но
+ * это не производная от «Сегодня»: план строится по готовности, но выбор
+ * места и завершение сессии — отдельное действие) и свой вопрос: «что мне
+ * сегодня физически можно и стоит сделать».
+ */
+export function WorkoutScreen() {
+  const mode = useAppStore((state) => state.mode);
+  const profile = useAppStore((state) => state.profile[state.mode]);
+  const events = useAppStore((state) => state.logEvents[state.mode]);
   const addSession = useAppStore((state) => state.addSession);
+  const stage = stageOf(profile);
 
   const [tab, setTab] = useState<"workout" | "meditation">("workout");
   const [location, setLocation] = useState<LocationId | null>(null);
@@ -60,17 +62,13 @@ export function WorkoutSheet({ mode, stage, events, onClose }: WorkoutSheetProps
       summary: `Тренировка: ${done} из ${plan.length} упражнений`,
       detail: `${locationLabel} · ${safe ? "щадящая программа" : LEVEL_LABEL[readiness.level].toLowerCase()}`,
     });
-    onClose();
+    setPlan(null);
+    setLocation(null);
   };
 
   return (
-    <BottomSheet
-      open
-      title="Тренировка или медитация"
-      subtitle="Подбор идёт по твоим сегодняшним записям"
-      onClose={onClose}
-    >
-      <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-surface-2 p-1">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border bg-surface-2 p-1">
         {(["workout", "meditation"] as const).map((value) => (
           <button
             key={value}
@@ -86,7 +84,7 @@ export function WorkoutSheet({ mode, stage, events, onClose }: WorkoutSheetProps
       </div>
 
       {tab === "meditation" ? (
-        <MeditationTab mode={mode} stage={stage} onDone={onClose} />
+        <MeditationTab mode={mode} stage={stage} onDone={() => undefined} />
       ) : (
         <div className="space-y-6">
           <div
@@ -206,6 +204,6 @@ export function WorkoutSheet({ mode, stage, events, onClose }: WorkoutSheetProps
           )}
         </div>
       )}
-    </BottomSheet>
+    </div>
   );
 }
