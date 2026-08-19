@@ -1,114 +1,181 @@
 # Mira UX And UI Specification
 
+Описывает `apps/mira` — базу продукта. `apps/web` использует более старую
+светлую систему и постепенно выводится из обращения.
+
 ## Design Principles
 
 - **Quiet intelligence**: turn complexity into one clear next action.
 - **Support without judgment**: no streak pressure, guilt, red failure states, or moral language about food and activity.
-- **Visible uncertainty**: show confidence, assumptions, and the ability to correct AI-derived information.
+- **Visible uncertainty**: show confidence, assumptions, and the ability to correct derived information.
 - **Safety before optimization**: pain and concerning self-reported patterns change the experience before performance goals do.
-- **Fast daily use**: the core check-in and plan should be understandable in under a minute.
+- **Fast daily use**: the core check-in should take under twenty seconds.
 - **Accessible by default**: legible contrast, touch targets, reduced motion, and plain-language labels.
 
 ## Visual Style
 
-The interface is calm, functional, and warm rather than clinical or decorative.
-Use an ivory canvas, paper surfaces, plum as the primary action color, sage for
-completion and restoration, muted rose for supportive context, and lavender for
-cycle context. Favor restrained shadows, compact rounded controls, clear
-typographic hierarchy, and information-dense but breathable layouts.
+Направление — **Quiet Clinical**: тёмная, сдержанная medtech-эстетика. Выбрана
+сознательно вместо светлого Apple-Health-стиля (теряется бренд) и вместо
+яркого «весёлого» интерфейса — эмоциональная точность важнее визуальной
+эффектности в моменты, когда человек отмечает спазмы, тревогу или бессонную
+ночь после родов.
 
-Avoid body-comparison imagery, urgency cues, aggressive progress visuals, and
-large decorative gradients. Use icons for familiar tools and icon-plus-text only
-for clear actions.
+### Токены
+
+Объявлены в `apps/mira/src/styles/tokens.css`.
+
+| Роль | Значение |
+|---|---|
+| Фон экрана | `#12141A` |
+| Поверхности | `#1C1F27` · `#20242E` · `#262A34` |
+| Обводка | `#2A2E38` (мягкая `#20242E`) |
+| Текст | `#EDEDF2` · вторичный `#9497A3` · третичный `#5C6070` |
+| Danger | `#FF5C72` — фиксирован, не зависит от режима |
+| Ok / Warn | `#5FBF8F` · `#E7B45A` |
+
+Акцент — единственное, что меняется при смене режима. Перезаписывается в
+`applyAccent()` в сторе:
+
+| Режим | Акцент |
+|---|---|
+| Цикл | `#F2637A` |
+| Планирую | `#E7A33E` |
+| Беременность | `#7BC6A4` |
+| После родов | `#8E9BFF` |
+| Перименопауза | `#D98C5F` |
+| Менопауза | `#9C8AD9` |
+
+Семантические цвета (ok / warn / danger) существуют **отдельно от акцента** и
+не участвуют в смене режима: тревога должна читаться одинаково везде.
+
+### Форма и типографика
+
+Радиус карточек 18px, чипов — меньше. Обводка в один пиксель вместо тяжёлых
+теней. UI-текст — Inter. Метки, единицы, даты и статусы — IBM Plex Mono,
+капсом, с трекингом 0.08em (утилита `.mono-label`).
+
+Избегать: изображений сравнения тел, сигналов срочности, агрессивных
+прогресс-визуалов и крупных декоративных градиентов.
 
 ## Tone Of Voice
 
-Use concise, calm, practical language. Prefer "may", "could", and "consider"
-when evidence is incomplete. Address the user directly, avoid promises, and do
-not frame missed activity or food choices as failures. Medical escalation uses
-the exact phrase: "consider discussing this with a qualified clinician."
+Concise, calm, practical. Prefer "may", "could", and "consider" when evidence
+is incomplete. Address the user directly, avoid promises, and do not frame
+missed activity or food choices as failures. Medical escalation uses the exact
+phrase: **"consider discussing this with a qualified clinician"** — в русском
+интерфейсе «стоит обсудить это с врачом».
 
-## Bottom Navigation
+Формулировки наблюдений — статистические, не диагностические: «встретилось в 3
+циклах из 6», а не «у тебя ПМС».
 
-Bottom navigation is persistent in the authenticated product and contains five
-items: Today, Calendar, Workouts, Nutrition, and Analytics. Each item has a
-recognizable icon and a short label. The active tab is clear through color and
-weight, not size shifts. Health Navigator opens from contextual cards and does
-not compete for a primary navigation slot.
+## Navigation
 
-## Today Dashboard UX
+Две вкладки. Критерий для вкладки: **свой вопрос пользователя и своя частота
+открытия**. Не проходит — значит это экран внутри чужой вкладки.
 
-Today is the default landing surface. It shows:
+| Вкладка | Вопрос | Частота |
+|---|---|---|
+| Сегодня | «Что со мной сегодня?» | ежедневно, ~20 секунд |
+| Мой цикл | «Это вообще нормально?» | раз в неделю-две |
 
-- A compact daily check-in entry point or completion summary.
-- A single primary plan card with movement intent, duration, intensity, and a short rationale.
-- Separate supporting actions for nutrition and recovery.
-- A visible pain-aware state that replaces training actions with safe, lower-intensity choices.
-- Context labels for self-reported signals and cycle data without declaring causation.
+Глубина ровно два уровня плюс листы поверх. Всё, что требует третьего уровня —
+признак лишней функции, а не повод углублять навигацию. Исключение: отчёт
+врачу внутри «Моего цикла», потому что он открывается раз в несколько месяцев.
 
-The primary action is either complete check-in, start the plan, or continue the
-current workout. Do not show competing primary calls to action.
+Позиции вкладок не меняются между режимами — только подписи и содержимое.
+Женщина за пять лет может пройти три режима, переучивать её расположению
+нельзя.
 
-## Calendar UX
+## Today UX
 
-Calendar is a date-based view of cycle logs, symptoms, check-ins, workouts,
-meals, and personal notes. Each day uses small, accessible markers with a
-legend; it must not imply a predicted medical event. Tapping a day opens a
-summary and permits correction. Cycle estimates remain visibly approximate and
-can be turned off.
+Дашборд и ввод на одном экране, без промежуточных экранов.
 
-## Workout Page UX
+Сверху — **календарь неделей** с точками активности под числами. Разворот в
+месяц по тапу на заголовок, листание месяцев назад — это и есть история. Тап
+по прошлому дню показывает его записи и даёт дозаполнить; будущие дни
+заблокированы.
 
-The Workout page presents one session at a time: intent, time budget,
-intensity, exercise list, cues, rest, and feedback. Users can reduce intensity,
-skip, or replace an exercise. Selecting pain immediately pauses the exercise,
-removes it from the active plan, and offers a safer alternative or recovery
-option. Completion feedback captures effort, pain, and notes without requiring
-long forms.
+Ниже — **кольцо** с главным числом режима (день цикла, неделя срока, дни после
+родов) и подписью-прогнозом. Затем **чипы быстрой записи**, «записано сегодня»
+и карточка тренировки или медитации.
 
-## Nutrition Page UX
+Возврат после пропуска не наказывается: ни счётчиков серий, ни «вы пропустили
+5 дней». Формулировка пустого прошлого дня — «Можно дозаполнить — это не
+поздно».
 
-Nutrition supports a meal log rather than a scorecard. Photo analysis shows
-identified foods, estimated portions, nutrient ranges, confidence, uncertain
-factors, and one follow-up question when helpful. The user must be able to
-correct components and portions before saving. Daily context focuses on gentle,
-practical support such as meal regularity, hydration, or protein inclusion; it
-does not prescribe restrictive behavior.
+## Мой цикл UX
 
-## Analytics UX
+Порядок блоков задан частотой вопросов, а не структурой кода.
 
-Analytics shows trends in energy, mood, sleep, stress, symptoms, training load,
-and completion over user-selected periods. It explains that trends are not
-medical conclusions. Insights must link to supporting observations and offer a
-way to hide or correct data. Avoid rankings, body scores, and uncontextualized
-correlations.
+1. **Прогноз** — главная дата с тегом уверенности, детали по тапу.
+2. **Что повторяется** — паттерны или честный прогресс к первому наблюдению.
+3. **Метрики** — список строк, график открывается по тапу.
+4. **Для врача** — блок со счётчиком собранных записей.
 
-## Health Navigator UX
+Метрики намеренно список, а не полотно графиков: шесть графиков подряд
+проматывают, шесть строк — читают и открывают одну нужную.
 
-Health Navigator is a calm, contextual surface for patterns worth noticing. It
-does not diagnose, triage emergencies, or substitute for care. It summarizes
-user-entered patterns, explains uncertainty, and can suggest that the user
-"consider discussing this with a qualified clinician." It may prepare a
-shareable, user-controlled summary but never sends data automatically.
+## Ступени уверенности
 
-## Loading States
+Каждый вывод находится ровно на одной из четырёх ступеней. Ступень
+**вычисляется из количества записей**, не задаётся вручную — так показать
+уверенный вывод по двум точкам технически невозможно.
 
-Use stable skeletons for plan, calendar, list, and analytics layouts so content
-does not shift. AI tasks show the current non-sensitive step, a cancel option
-where possible, and a clear reminder that estimates may be approximate. Never
-present a loading state as a clinical assessment.
+| Ступень | Условие | Что показываем |
+|---|---|---|
+| Нет данных | 0 записей | Пунктирная рамка, прозрачный фон, понятный следующий шаг |
+| Мало данных | 1 — порог | Полоса прогресса и точное число: «4 из 10» |
+| Наблюдение | порог пройден, повтор неустойчив | Вывод с исходной дробью: «3 цикла из 6» |
+| Твоя норма | устойчивый повтор | Утверждение — и всё равно с разбросом, а не одним числом |
+
+Компонент — `ConfidenceTag` (HIGH / MEDIUM / LOW), пустое состояние —
+`EmptyChartCard`.
 
 ## Empty States
 
-Empty states explain the immediate value of adding one piece of context and
-offer one relevant action. Examples: complete the first check-in, add a meal,
-start a workout, or log a symptom. They do not use shame, pressure, or false
-progress claims.
+Пустое состояние — полноценная часть системы, а не ошибка. Отношение к нему
+такое же, как к «счастливому пути»: пунктирная рамка, приглушённый фон, честная
+короткая подпись без иконки-заглушки в духе 404.
+
+Ни в коем случае не маскировать пустоту статьями, промо или графиком по двум
+точкам. Один честный пустой экран вызывает доверие; три подряд читаются как
+«приложение сломано» — поэтому разделы и были объединены.
+
+## Практики UX
+
+Экран открывается **объяснением, почему нагрузка именно такая**, со ссылкой на
+конкретные сегодняшние отметки. Список упражнений — вторым: этим продукт и
+отличается от каталога тренировок.
+
+Состояние «сегодня лучше отдохнуть» — полноценное, со своим спокойным цветом,
+формулировкой «это не пропуск и не срыв» и альтернативами (дыхание, тепло).
+При этом кнопка «всё равно показать тренировку» остаётся: продукт советует, а
+не запрещает.
+
+В беременности и после родов подбор идёт из отдельного безопасного набора, и
+оговорка про согласование с врачом стоит прямо перед списком. В остальных
+режимах её нет — иначе она превращается в шум, который перестают читать.
+
+## Отчёт врачу UX
+
+Четыре блока в порядке разговора в кабинете: что собрано → что стоит показать
+→ цифры → что спросить.
+
+Блок «стоит обсудить» появляется, **только если есть что показать** — пустым не
+бывает. Блок «главное» даёт цифры в привычном врачу виде с пометкой
+отклонений. Вопросы формулируются вопросами, а не утверждениями: продукт не
+говорит «у тебя перименопауза», он даёт спросить об этом.
+
+Выбор данных для выгрузки — про приватность, а не про удобство: заметки своими
+словами и данные об интимной жизни сняты по умолчанию и помечены как личное.
+Женщина видит выбор до создания файла, а не обнаруживает содержимое у врача.
+
+## Loading States
+
+Стабильные скелетоны, чтобы контент не прыгал. Никогда не подавать состояние
+загрузки как клиническую оценку.
 
 ## Error States
 
-Errors use plain language, preserve entered data, and provide a retry or
-alternative manual path. Photo failures explain supported formats and privacy
-limits without exposing implementation details. AI unavailability falls back to
-deterministic, non-medical guidance where safe; otherwise it says that a plan
-cannot be generated right now.
+Plain language, сохранение введённых данных, повтор или ручной путь. Не
+раскрывать детали реализации.

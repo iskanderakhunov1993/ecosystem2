@@ -50,32 +50,54 @@ it with minimal input.
 
 ```text
 apps/
-  web/                 Vite + React product prototype
-  mobile/              Future Expo Router application
-packages/
-  domain/              Readiness rules, types, validators
-  design-system/       Tokens and cross-platform primitives
-  api-client/          Typed Supabase Edge Function client
+  mira/                Vite + React 18 SPA — база продукта
+  web/                 Next.js 15 — предыдущая версия, источник переноса
+shared/                Общие контракты
 supabase/
   migrations/          PostgreSQL schema and RLS
   functions/           Secure AI orchestration
+deploy/                Конфигурация развёртывания
 docs/
   MIRA_ARCHITECTURE.md
+  PRODUCT_SPEC.md
+  UX_UI_SPEC.md
+  AI_SPEC.md
 ```
 
-The current MVP implements `apps/web`. When mobile work begins, pure functions
-such as readiness calculation move to `packages/domain`; screens are rebuilt
-with React Native primitives rather than shared DOM components.
+Два приложения независимы: у каждого свой `package.json`, свой стор и своё
+хранилище. Общего пакета домена пока нет — расчёты дублируются, и это осознанный
+временный компромисс: выносить их в `packages/` имеет смысл, когда перенос
+функциональности завершится и станет ясно, что именно общее.
 
 ## Frontend architecture
 
-- React + TypeScript + Vite for rapid validation.
-- Feature boundaries: daily coach, workout, nutrition, progress and profile.
-- Server state: TanStack Query when Supabase is connected.
-- Local UI state: component state or a small Zustand store.
-- Forms: React Hook Form + Zod.
-- Mobile: Expo Router, React Native Reanimated, Expo Camera and HealthKit
-  adapters behind platform interfaces.
+### `apps/mira` — база продукта
+
+- React 18 + TypeScript + Vite. Роутинга нет: одна SPA-панель с двумя
+  вкладками и уровнями вглубь через локальное состояние экрана.
+- Состояние: Zustand (`store/appStore.ts`), запись в IndexedDB через `idb`.
+- Границы фич: `today`, `cycle`, `doctor`, `analytics`, `patterns`,
+  `predictions`, `onboarding`, `life-stage-gate`, `settings`.
+  Последние три из аналитической группы — не вкладки, а экраны второго уровня
+  внутри `cycle`.
+- Тема на CSS-переменных; акцент режима перезаписывается в `applyAccent()`.
+
+**`logEvents` — единственный источник истины.** Лог append-only; снимок дня,
+календарные точки, аналитика, паттерны и отчёт врачу вычисляются из событий.
+Запись за прошлый день ставится на полдень выбранной даты, чтобы не зависеть
+от часового пояса. Будущие даты запрещены на уровне интерфейса.
+
+### `apps/web` — предыдущая версия
+
+- Next.js 15 App Router + React 19.
+- Состояние: Zustand с `persist` в localStorage, валидация Zod при регидрации.
+- Supabase для авторизации и синхронизации.
+
+Историческая особенность: в `apps/web` два параллельных слоя персистентности —
+zustand-стор и более старый `MiraLocalData` в `lib/store.ts`. Доменные модули
+`lib/*` — чистые функции, принимающие `MiraLocalData` параметром, поэтому
+проекция состояния в эту форму решает проблему без переписывания аналитики.
+При переносе в `apps/mira` этот слой не воспроизводится: там хранилище одно.
 
 Never put an OpenAI API key in web or mobile clients.
 
@@ -230,58 +252,79 @@ Self-reported symptoms and individual history outweigh phase assumptions.
 
 ## Design system
 
-Core tokens:
+Направление — **Quiet Clinical**: тёмная сдержанная medtech-эстетика. Полное
+описание — в [UX_UI_SPEC.md](UX_UI_SPEC.md), токены — в
+`apps/mira/src/styles/tokens.css`.
 
 ```text
-Ivory       #FBF8F4  primary canvas
-Paper       #FFFEFA  elevated surface
-Muted rose  #BC8992  warmth and secondary context
-Plum        #74505D  accessible primary action
-Lavender    #AFA7BD  recovery and cycle context
-Sage        #738B79  completion and restoration
-Warm beige  #DDCFC2  neutral wellness context
-Ink         #292326  primary text
+Screen bg   #12141A  фон экрана
+Surface     #1C1F27  поверхность карточки
+Surface 2/3 #20242E · #262A34
+Border      #2A2E38  обводка вместо тяжёлых теней
+Text        #EDEDF2  вторичный #9497A3, третичный #5C6070
+Danger      #FF5C72  фиксирован, не зависит от режима
+Ok / Warn   #5FBF8F · #E7B45A
 ```
+
+Акцент — единственное, что меняется при смене режима: цикл `#F2637A`,
+планирую `#E7A33E`, беременность `#7BC6A4`, после родов `#8E9BFF`,
+перименопауза `#D98C5F`, менопауза `#9C8AD9`. Семантические цвета живут
+отдельно от акцента: тревога должна читаться одинаково во всех режимах.
 
 Principles:
 
 - "quiet intelligence": calm surfaces with a precise, confident hierarchy
-- generous whitespace and one primary action per screen
-- rounded 13–28 px surfaces with restrained shadows
+- одна система, шесть кож — меняется акцент и содержимое, не структура
+- радиус карточек 18px, обводка в один пиксель вместо теней
+- UI-текст Inter, метки и единицы — IBM Plex Mono капсом с трекингом
 - calm, supportive language without judgment
-- uncertainty and confidence are visible, not hidden
+- uncertainty and confidence are visible, not hidden — ступени уверенности
+  вычисляются из объёма данных, а не задаются вручную
 - motion communicates adaptation, never urgency
 - no red failure states for missed workouts or food choices
-- the Mira mark combines an `M`, a body silhouette and an adaptive orbit
+- никакой геймификации: ни стриков, ни бейджей
 
 ## Roadmap
 
-### Phase 0: clickable web MVP
+### Фаза 0 — консолидация (текущая)
 
-- Validate value proposition and daily loop with 10–15 women.
-- Measure whether the generated recommendation feels personally relevant.
-- Test trust in meal and body scan explanations.
+Два приложения с пересекающимся смыслом надо свести в одно. `apps/mira` —
+основа, из `apps/web` переносится зрелая функциональность.
 
-### Phase 1: connected web alpha
+- Перенести анализы с референсами и оценкой отклонений.
+- Перенести напоминания (`personalReminders.ts`).
+- Перенести контент и статьи.
+- Перенести исламский режим и возрастные адаптации.
+- Зафиксировать схему развёртывания: адрес из прежнего README отдаёт 404.
 
-- Supabase auth, profile, check-ins and workout persistence.
-- Edge Functions with OpenAI structured output.
-- Curated exercise library and deterministic safety policies.
-- Meal image upload and corrections.
+### Фаза 1 — закрыть разрывы в сценариях
 
-### Phase 2: Expo private beta
+Найдены в продуктовом аудите, каждый ломает конкретный путь пользователя.
 
-- Apple/email auth, camera, push notifications and StoreKit.
-- Apple Health integration behind explicit consent.
-- Guided body scan capture and encrypted storage.
-- Post-workout feedback and adaptation history.
+- **Выход из беременности** — касается каждой пятой-десятой беременности,
+  сценария нет вообще. Женщина после потери открывает приложение и видит
+  счётчик недель. Цена реализации — один экран.
+- **«Не помню дату последних месячных»** — сейчас обязательное поле, и на нём
+  уходит именно та, кому продукт нужнее всего: с нерегулярным циклом.
+- **«Что было после приёма»** — вершина пути, про которую продукт не
+  спрашивает. Даёт повод вернуться в момент максимальной вовлечённости.
 
-### Phase 3: paid MVP
+### Фаза 2 — облако и синхронизация
 
+- Supabase auth и синхронизация между устройствами в `apps/mira`.
+- Row Level Security, экспорт и удаление по запросу.
+- PDF-экспорт отчёта врачу вместо текстового.
+
+### Фаза 3 — платная версия
+
+- Скрининг на СПКЯ и эндометриоз (половина логики есть в `safety.ts`).
 - Subscription entitlement service and usage limits.
-- Model evaluation dashboard, safety review and deletion/export tooling.
-- Cohort analytics: activation, D7 retention, workout completion, pain
-  replacement success and trial conversion.
+- Cohort analytics: activation, D7 retention, доля дошедших до 3 циклов,
+  доля выгрузивших отчёт.
+
+Мобильное приложение на Expo из плана убрано: PWA закрывает задачу установки
+на телефон, а вторая платформа удвоит стоимость поддержки до того, как продукт
+подтвердит ценность.
 
 ## MVP success metrics
 
