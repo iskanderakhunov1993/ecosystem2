@@ -3,9 +3,10 @@ import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { ConfidenceTag } from "@/components/ConfidenceTag";
 import { Icon } from "@/data/icons";
-import { QUICK_LOG } from "@/data/modes.config";
+import { getQuickLog } from "@/data/modes.config";
 import { formatDayHeading, pluralRu } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
+import { stageOf } from "@/lib/types";
 import type { ConfidenceTier } from "@/lib/types";
 import type { EvidenceTier } from "./cycleEvidence";
 import { PATTERN_THRESHOLD, computePatterns, patternTier, primaryPattern } from "./computePatterns";
@@ -19,10 +20,11 @@ const EVIDENCE_TO_CONFIDENCE: Record<EvidenceTier, ConfidenceTier> = {
 export function PatternsScreen() {
   const mode = useAppStore((state) => state.mode);
   const events = useAppStore((state) => state.logEvents[state.mode]);
+  const stage = useAppStore((state) => stageOf(state.profile[state.mode]));
   const setTab = useAppStore((state) => state.setTab);
 
   const tier = patternTier(events.length);
-  const patterns = useMemo(() => computePatterns(events, mode), [events, mode]);
+  const patterns = useMemo(() => computePatterns(events, mode, stage), [events, mode, stage]);
   const insight = useMemo(() => primaryPattern(events, mode), [events, mode]);
 
   const recent = [...events].reverse().slice(0, 6);
@@ -108,7 +110,7 @@ export function PatternsScreen() {
             <li key={event.id} className="flex items-start justify-between gap-3">
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-medium text-text">
-                  {QUICK_LOG[mode].find((chip) => chip.id === event.chipId)?.label ?? event.chipId}
+                  {getQuickLog(mode, stage).find((chip) => chip.id === event.chipId)?.label ?? event.chipId}
                 </span>
                 <span className="block text-[12px] leading-snug text-text-dim">{event.summary}</span>
               </span>

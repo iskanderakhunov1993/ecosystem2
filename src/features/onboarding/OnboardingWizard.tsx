@@ -8,22 +8,27 @@ import {
   type FieldDraft,
 } from "@/components/ProfileFields";
 import { Icon } from "@/data/icons";
-import { ONBOARD_CONFIG, QUICK_LOG, MODE_LABELS } from "@/data/modes.config";
+import { getOnboardConfig, getQuickLog, MODE_LABELS } from "@/data/modes.config";
 import { useAppStore, applyAccent } from "@/store/appStore";
-import type { Mode } from "@/lib/types";
+import type { Mode, Stage } from "@/lib/types";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { PrivacyStep } from "./steps/PrivacyStep";
 import { GoalStep } from "./steps/GoalStep";
+import { StageStep } from "./steps/StageStep";
 import { BaselineStep } from "./steps/BaselineStep";
 import { DoneStep } from "./steps/DoneStep";
 
-type StepId = "welcome" | "privacy" | "goal" | "fields" | "baseline" | "done";
+type StepId = "welcome" | "privacy" | "goal" | "stage" | "fields" | "baseline" | "done";
 
-function baselineGroup(mode: Mode | null) {
+const hasStages = (mode: Mode): mode is "motherhood" | "menopause" =>
+  mode === "motherhood" || mode === "menopause";
+
+function baselineGroup(mode: Mode | null, stage: Stage | null) {
   if (!mode) return null;
-  const chipId = ONBOARD_CONFIG[mode].baselineChipId;
+  if (hasStages(mode) && !stage) return null;
+  const chipId = getOnboardConfig(mode, stage ?? undefined).baselineChipId;
   if (!chipId) return null;
-  const chip = QUICK_LOG[mode].find((item) => item.id === chipId);
+  const chip = getQuickLog(mode, stage ?? undefined).find((item) => item.id === chipId);
   const group = chip?.groups.find((item) => item.type === "multi");
   return chip && group ? { chipId: chip.id, group } : null;
 }
@@ -37,17 +42,20 @@ export function OnboardingWizard() {
 
   const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<Mode | null>(null);
+  const [stage, setStage] = useState<Stage | null>(null);
   const [draft, setDraft] = useState<FieldDraft>({});
   const [baseline, setBaseline] = useState<string[]>([]);
 
-  const baselineInfo = baselineGroup(mode);
+  const baselineInfo = baselineGroup(mode, stage);
 
   const steps = useMemo<StepId[]>(() => {
-    const list: StepId[] = ["welcome", "privacy", "goal", "fields"];
+    const list: StepId[] = ["welcome", "privacy", "goal"];
+    if (mode && hasStages(mode)) list.push("stage");
+    list.push("fields");
     if (baselineInfo) list.push("baseline");
     list.push("done");
     return list;
-  }, [baselineInfo]);
+  }, [mode, baselineInfo]);
 
   const step = steps[Math.min(index, steps.length - 1)];
 
@@ -57,8 +65,10 @@ export function OnboardingWizard() {
         return privacy.consented;
       case "goal":
         return mode !== null;
+      case "stage":
+        return stage !== null;
       case "fields":
-        return mode !== null && isDraftComplete(mode, draft);
+        return mode !== null && isDraftComplete(mode, stage ?? undefined, draft);
       default:
         return true;
     }
@@ -66,14 +76,25 @@ export function OnboardingWizard() {
 
   const chooseMode = (next: Mode) => {
     setMode(next);
-    setDraft(initialDraft(next, {}));
+    setStage(null);
     setBaseline([]);
-    applyAccent(next);
+    if (!hasStages(next)) {
+      setDraft(initialDraft(next, undefined, {}));
+      applyAccent(next);
+    }
+  };
+
+  const chooseStage = (next: Stage) => {
+    setStage(next);
+    if (mode) {
+      setDraft(initialDraft(mode, next, {}));
+      applyAccent(mode, next);
+    }
   };
 
   const finish = () => {
     if (!mode) return;
-    completeOnboarding(mode, draftToProfile(mode, draft));
+    completeOnboarding(mode, draftToProfile(mode, stage ?? undefined, draft));
     if (baselineInfo && baseline.length > 0) {
       addLogEvent({
         mode,
@@ -84,8 +105,8 @@ export function OnboardingWizard() {
     }
   };
 
-  const summaryLines = mode
-    ? ONBOARD_CONFIG[mode].fields.map((field) => {
+  const summaryLines = mode && !(hasStages(mode) && !stage)
+    ? getOnboardConfig(mode, stage ?? undefined).fields.map((field) => {
         const value = draft[field.key];
         const suffix = field.kind === "stepper" ? ` ${field.unit}` : "";
         return `${field.label} — ${value ?? "—"}${suffix}`;
@@ -127,6 +148,9 @@ export function OnboardingWizard() {
           />
         )}
         {step === "goal" && <GoalStep value={mode} onChange={chooseMode} />}
+        {step === "stage" && mode && hasStages(mode) && (
+          <StageStep mode={mode} value={stage} onChange={chooseStage} />
+        )}
         {step === "fields" && mode && (
           <div className="pt-2">
             <h1 className="font-display text-[24px] font-semibold leading-tight text-text">
@@ -136,7 +160,7 @@ export function OnboardingWizard() {
               По этим значениям считается дашборд. Уточнить их можно в любой момент в настройках.
             </p>
             <div className="mt-6">
-              <ProfileFields mode={mode} draft={draft} onChange={setDraft} />
+              <ProfileFields mode={mode} stage={stage ?? undefined} draft={draft} onChange={setDraft} />
             </div>
           </div>
         )}

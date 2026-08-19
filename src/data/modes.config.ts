@@ -1,8 +1,8 @@
 import type { IconName } from "@/data/icons";
-import type { Mode } from "@/lib/types";
+import type { MenopauseStage, Mode, MotherhoodStage, Stage } from "@/lib/types";
 
 /* ------------------------------------------------------------------ */
-/* Акценты режимов                                                     */
+/* Акценты режимов и стадий                                            */
 /* ------------------------------------------------------------------ */
 
 export interface AccentTokens {
@@ -11,49 +11,81 @@ export interface AccentTokens {
   accentSoft: string;
 }
 
+/** Акцент режима по умолчанию — используется, пока стадия не выбрана. */
 export const MODE_ACCENTS: Record<Mode, AccentTokens> = {
   cycle: { accent: "#F2637A", accentText: "#FF93A5", accentSoft: "rgba(242,99,122,0.14)" },
-  ttc: { accent: "#E7A33E", accentText: "#F2C066", accentSoft: "rgba(231,163,62,0.14)" },
+  fertility: { accent: "#E7A33E", accentText: "#F2C066", accentSoft: "rgba(231,163,62,0.14)" },
+  motherhood: { accent: "#7BC6A4", accentText: "#9BE0C0", accentSoft: "rgba(123,198,164,0.14)" },
+  menopause: { accent: "#9C8AD9", accentText: "#C0B3EA", accentSoft: "rgba(156,138,217,0.14)" },
+};
+
+/** Стадия внутри motherhood/menopause переопределяет акцент режима. */
+export const STAGE_ACCENTS: Record<Stage, AccentTokens> = {
   pregnancy: { accent: "#7BC6A4", accentText: "#9BE0C0", accentSoft: "rgba(123,198,164,0.14)" },
   postpartum: { accent: "#8E9BFF", accentText: "#B2BCFF", accentSoft: "rgba(142,155,255,0.14)" },
   perimenopause: { accent: "#D98C5F", accentText: "#EBB58C", accentSoft: "rgba(217,140,95,0.14)" },
   menopause: { accent: "#9C8AD9", accentText: "#C0B3EA", accentSoft: "rgba(156,138,217,0.14)" },
 };
 
+export function getAccent(mode: Mode, stage?: Stage): AccentTokens {
+  return stage ? STAGE_ACCENTS[stage] : MODE_ACCENTS[mode];
+}
+
 export const MODE_LABELS: Record<Mode, string> = {
   cycle: "Цикл",
-  ttc: "Планирую",
+  fertility: "Планирую",
+  motherhood: "Беременность и после родов",
+  menopause: "Цикл меняется / менопауза",
+};
+
+export const STAGE_LABELS: Record<Stage, string> = {
   pregnancy: "Беременность",
   postpartum: "После родов",
-  perimenopause: "Перименопауза",
+  perimenopause: "Цикл меняется",
   menopause: "Менопауза",
 };
 
 /* ------------------------------------------------------------------ */
-/* Life stages (онбординг + life-stage gate)                           */
+/* Онбординг + life-stage gate: выбор режима, затем стадии              */
 /* ------------------------------------------------------------------ */
 
-export interface LifeStage {
+export interface CoreModeOption {
   mode: Mode;
+  title: string;
+  hint: string;
+}
+
+export const CORE_MODES: CoreModeOption[] = [
+  { mode: "cycle", title: "Отслеживать цикл", hint: "Стандартный трекинг цикла" },
+  { mode: "fertility", title: "Планирую беременность", hint: "Окно фертильности, попытки" },
+  { mode: "motherhood", title: "Беременность и после родов", hint: "Определим стадию по неделям/дням" },
+  { mode: "menopause", title: "Цикл меняется / менопауза", hint: "Нерегулярно или год+ без цикла" },
+];
+
+export interface StageOption {
+  stage: Stage;
   title: string;
   hint: string;
   /** Soft prompt вместо hard gate — самоотчёт, а не объективное событие. */
   soft?: boolean;
 }
 
-export const LIFE_STAGES: LifeStage[] = [
-  { mode: "cycle", title: "Отслеживать цикл", hint: "Стандартный трекинг цикла" },
-  { mode: "ttc", title: "Планирую беременность", hint: "Окно фертильности" },
-  { mode: "pregnancy", title: "Я беременна", hint: "Тест положительный" },
-  { mode: "postpartum", title: "Недавно родила", hint: "Восстановление после родов" },
-  {
-    mode: "perimenopause",
-    title: "Цикл меняется",
-    hint: "Нерегулярный цикл 3+ месяца",
-    soft: true,
-  },
-  { mode: "menopause", title: "Год и более без менструации", hint: "Менопауза подтверждена" },
-];
+/** Стадии показываются вторым шагом того же bottom sheet только для motherhood/menopause. */
+export const STAGE_OPTIONS: Record<"motherhood" | "menopause", StageOption[]> = {
+  motherhood: [
+    { stage: "pregnancy", title: "Я беременна", hint: "Тест положительный" },
+    { stage: "postpartum", title: "Недавно родила", hint: "Восстановление после родов" },
+  ],
+  menopause: [
+    {
+      stage: "perimenopause",
+      title: "Цикл меняется",
+      hint: "Нерегулярный цикл 3+ месяца",
+      soft: true,
+    },
+    { stage: "menopause", title: "Год и более без менструации", hint: "Менопауза подтверждена" },
+  ],
+};
 
 export const SOFT_PROMPT_TEXT =
   "Нерегулярный цикл — это не всегда перименопауза: причиной может быть стресс, смена часовых поясов, перелёты, резкая смена веса. Если это повторяется несколько месяцев подряд — стоит присмотреться внимательнее. Решать тебе.";
@@ -109,12 +141,13 @@ const CYCLE_LEN_FIELD: OnboardField = {
   unit: "дней",
 };
 
-export const ONBOARD_CONFIG: Record<Mode, OnboardModeConfig> = {
+/** Онбординг для режимов без стадии: cycle, fertility. */
+export const ONBOARD_CONFIG: Record<"cycle" | "fertility", OnboardModeConfig> = {
   cycle: {
     fields: [LAST_PERIOD_FIELD, CYCLE_LEN_FIELD],
     baselineChipId: "symptom",
   },
-  ttc: {
+  fertility: {
     fields: [
       LAST_PERIOD_FIELD,
       CYCLE_LEN_FIELD,
@@ -126,6 +159,10 @@ export const ONBOARD_CONFIG: Record<Mode, OnboardModeConfig> = {
       },
     ],
   },
+};
+
+/** Онбординг для стадий motherhood/menopause. */
+export const ONBOARD_STAGE_CONFIG: Record<Stage, OnboardModeConfig> = {
   pregnancy: {
     fields: [
       { kind: "stepper", key: "week", label: "Срок беременности", min: 1, max: 40, default: 8, unit: "нед" },
@@ -153,6 +190,12 @@ export const ONBOARD_CONFIG: Record<Mode, OnboardModeConfig> = {
     ],
   },
 };
+
+/** Единая точка входа: cycle/fertility по mode, motherhood/menopause по stage. */
+export function getOnboardConfig(mode: Mode, stage?: Stage): OnboardModeConfig {
+  if (stage) return ONBOARD_STAGE_CONFIG[stage];
+  return ONBOARD_CONFIG[mode as "cycle" | "fertility"];
+}
 
 /* ------------------------------------------------------------------ */
 /* Быстрый лог на Today                                                */
@@ -227,7 +270,8 @@ const FLOW_GROUP: LogGroup = {
   options: ["Мажущие", "Слабые", "Средние", "Обильные"],
 };
 
-export const QUICK_LOG: Record<Mode, ChipConfig[]> = {
+/** Чипы для режимов без стадии: cycle, fertility. */
+export const QUICK_LOG: Record<"cycle" | "fertility", ChipConfig[]> = {
   cycle: [
     MOOD_CHIP,
     { id: "flow", label: "Выделения", icon: "flow", groups: [FLOW_GROUP] },
@@ -252,7 +296,7 @@ export const QUICK_LOG: Record<Mode, ChipConfig[]> = {
     },
     MORE_CHIP,
   ],
-  ttc: [
+  fertility: [
     {
       id: "bbt",
       label: "БТ",
@@ -285,6 +329,10 @@ export const QUICK_LOG: Record<Mode, ChipConfig[]> = {
     MOOD_CHIP,
     MORE_CHIP,
   ],
+};
+
+/** Чипы для стадий motherhood/menopause. */
+export const QUICK_LOG_BY_STAGE: Record<Stage, ChipConfig[]> = {
   pregnancy: [
     {
       id: "symptom",
@@ -360,8 +408,14 @@ export const QUICK_LOG: Record<Mode, ChipConfig[]> = {
   ],
 };
 
-export function getChipConfig(mode: Mode, chipId: string): ChipConfig | undefined {
-  return QUICK_LOG[mode].find((chip) => chip.id === chipId);
+/** Единая точка входа: cycle/fertility по mode, motherhood/menopause по stage. */
+export function getQuickLog(mode: Mode, stage?: Stage): ChipConfig[] {
+  if (stage) return QUICK_LOG_BY_STAGE[stage];
+  return QUICK_LOG[mode as "cycle" | "fertility"];
+}
+
+export function getChipConfig(mode: Mode, stage: Stage | undefined, chipId: string): ChipConfig | undefined {
+  return getQuickLog(mode, stage).find((chip) => chip.id === chipId);
 }
 
 /* ------------------------------------------------------------------ */
@@ -457,8 +511,8 @@ export const WORKOUT_POOLS: Record<Intensity, Pool> = {
   },
 };
 
-/** Отдельный щадящий пул: не зависит от readiness score. */
-export const SAFE_POOLS: Record<"pregnancy" | "postpartum", Pool> = {
+/** Отдельный щадящий пул: не зависит от readiness score. Ключ — стадия motherhood. */
+export const SAFE_POOLS: Record<MotherhoodStage, Pool> = {
   pregnancy: {
     street: [
       { name: "Прогулка в комфортном темпе", detail: "20 минут, без одышки" },
@@ -504,14 +558,26 @@ export const SAFE_POOLS: Record<"pregnancy" | "postpartum", Pool> = {
 export const SAFE_POOL_DISCLAIMER =
   "Программа щадящая по умолчанию. Перед тренировками стоит обсудить нагрузку с квалифицированным врачом.";
 
-export const MEDITATION_PROMPTS: Record<Mode, string> = {
+/** Медитация для режимов без стадии. */
+export const MEDITATION_PROMPTS: Record<"cycle" | "fertility", string> = {
   cycle: "Дыхательная практика для снижения напряжения перед месячными",
-  ttc: "Практика на снижение тревоги ожидания",
+  fertility: "Практика на снижение тревоги ожидания",
+};
+
+/** Медитация для стадий motherhood/menopause. */
+export const MEDITATION_PROMPTS_BY_STAGE: Record<Stage, string> = {
   pregnancy: "Спокойное дыхание и контакт с телом",
   postpartum: "Короткая пауза для восстановления между делами",
   perimenopause: "Практика на охлаждение и заземление при приливах",
   menopause: "Вечерняя практика для более спокойного сна",
 };
 
+export function getMeditationPrompt(mode: Mode, stage?: Stage): string {
+  if (stage) return MEDITATION_PROMPTS_BY_STAGE[stage];
+  return MEDITATION_PROMPTS[mode as "cycle" | "fertility"];
+}
+
 export const MEDITATION_DURATIONS = [5, 10, 15, 20];
 export const MEDITATION_SOUNDS = ["Природа", "Белый шум", "Инструментал", "Тишина"];
+
+export type { MenopauseStage, MotherhoodStage, Stage };

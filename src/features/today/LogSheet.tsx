@@ -5,7 +5,7 @@ import { FieldLabel, OptionChips, Scale5, Stepper } from "@/components/inputs";
 import { MOOD_SCALE_LABELS, getChipConfig, type LogGroup } from "@/data/modes.config";
 import { dateKey, formatDate, startOfDay } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
-import type { Mode } from "@/lib/types";
+import type { Mode, Stage } from "@/lib/types";
 
 type GroupValue = { selected: string[]; scale: number | null; numeric: number | null };
 
@@ -34,6 +34,7 @@ function groupSummary(group: LogGroup, value: GroupValue): string | null {
 
 interface LogSheetProps {
   mode: Mode;
+  stage?: Stage;
   chipId: string;
   /** Дата записи. Без неё — сегодня; с ней — дозаполнение прошлого дня из календаря. */
   date?: number;
@@ -44,9 +45,9 @@ interface LogSheetProps {
  * Bottom sheet поверх Today. Сохранение пушит событие в append-only лог
  * и возвращает пользователя на Today — промежуточных экранов нет.
  */
-export function LogSheet({ mode, chipId, date, onClose }: LogSheetProps) {
+export function LogSheet({ mode, stage, chipId, date, onClose }: LogSheetProps) {
   const addLogEvent = useAppStore((state) => state.addLogEvent);
-  const chip = getChipConfig(mode, chipId);
+  const chip = getChipConfig(mode, stage, chipId);
 
   const [values, setValues] = useState<Record<string, GroupValue>>(() => {
     const initial: Record<string, GroupValue> = {};

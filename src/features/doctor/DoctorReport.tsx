@@ -4,6 +4,7 @@ import { Card } from "@/components/Card";
 import { Icon } from "@/data/icons";
 import { pluralRu } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
+import { stageOf } from "@/lib/types";
 import { RANGE_LABELS, buildReport, reportToText, type RangeKey, type ShareKey } from "./buildReport";
 
 /**
@@ -15,11 +16,12 @@ export function DoctorReport({ onBack }: { onBack: () => void }) {
   const profile = useAppStore((state) => state.profile[state.mode]);
   const events = useAppStore((state) => state.logEvents[state.mode]);
   const sessions = useAppStore((state) => state.sessions[state.mode]);
+  const stage = stageOf(profile);
 
   const [range, setRange] = useState<RangeKey>("3m");
   const report = useMemo(
-    () => buildReport(mode, profile, events, sessions, range),
-    [mode, profile, events, sessions, range]
+    () => buildReport(mode, stage, profile, events, sessions, range),
+    [mode, stage, profile, events, sessions, range]
   );
 
   // Чувствительные категории сняты по умолчанию: женщина решает это до того,

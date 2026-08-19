@@ -1,13 +1,13 @@
 import { OptionChips, Stepper, FieldLabel } from "@/components/inputs";
-import { ONBOARD_CONFIG, type OnboardField } from "@/data/modes.config";
-import type { Mode, Profile, ProfileValue } from "@/lib/types";
+import { getOnboardConfig, type OnboardField } from "@/data/modes.config";
+import type { Mode, Profile, ProfileValue, Stage } from "@/lib/types";
 
 /** Значение поля в UI: подпись выбранного чипа или число степпера. */
 export type FieldDraft = Record<string, string | number | undefined>;
 
-export function initialDraft(mode: Mode, profile: Profile): FieldDraft {
+export function initialDraft(mode: Mode, stage: Stage | undefined, profile: Profile): FieldDraft {
   const draft: FieldDraft = {};
-  for (const field of ONBOARD_CONFIG[mode].fields) {
+  for (const field of getOnboardConfig(mode, stage).fields) {
     const saved = profile[field.key];
     if (field.kind === "stepper") {
       draft[field.key] = typeof saved === "number" ? saved : field.default;
@@ -21,13 +21,13 @@ export function initialDraft(mode: Mode, profile: Profile): FieldDraft {
   return draft;
 }
 
-export function isDraftComplete(mode: Mode, draft: FieldDraft): boolean {
-  return ONBOARD_CONFIG[mode].fields.every((field) => draft[field.key] !== undefined);
+export function isDraftComplete(mode: Mode, stage: Stage | undefined, draft: FieldDraft): boolean {
+  return getOnboardConfig(mode, stage).fields.every((field) => draft[field.key] !== undefined);
 }
 
-export function draftToProfile(mode: Mode, draft: FieldDraft): Profile {
-  const profile: Profile = {};
-  for (const field of ONBOARD_CONFIG[mode].fields) {
+export function draftToProfile(mode: Mode, stage: Stage | undefined, draft: FieldDraft): Profile {
+  const profile: Profile = stage ? { stage } : {};
+  for (const field of getOnboardConfig(mode, stage).fields) {
     const value = draft[field.key];
     if (value === undefined) continue;
     if (field.kind === "stepper") {
@@ -46,14 +46,15 @@ export function draftToProfile(mode: Mode, draft: FieldDraft): Profile {
 
 interface ProfileFieldsProps {
   mode: Mode;
+  stage?: Stage;
   draft: FieldDraft;
   onChange: (next: FieldDraft) => void;
   fields?: OnboardField[];
 }
 
 /** Один рендерер полей на онбординг, life-stage gate и settings. */
-export function ProfileFields({ mode, draft, onChange, fields }: ProfileFieldsProps) {
-  const list = fields ?? ONBOARD_CONFIG[mode].fields;
+export function ProfileFields({ mode, stage, draft, onChange, fields }: ProfileFieldsProps) {
+  const list = fields ?? getOnboardConfig(mode, stage).fields;
 
   return (
     <div className="space-y-5">

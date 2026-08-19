@@ -1,6 +1,6 @@
 import { chipFrequency, labelFrequency, scaleSeries } from "@/features/analytics/aggregations";
 import { getChipConfig } from "@/data/modes.config";
-import type { LogEvent, Mode } from "@/lib/types";
+import type { LogEvent, Mode, Stage } from "@/lib/types";
 import { pluralRu } from "@/lib/derive";
 import { buildSymptomCycleEvidence, type EvidenceTier } from "./cycleEvidence";
 
@@ -34,13 +34,13 @@ const TIER_LABEL: Record<EvidenceTier, string> = {
  * Только то, что реально вычисляется из логов. Ни одной формулировки
  * вида «в 5 из 6 циклов» без 5–6 циклов данных за спиной.
  */
-export function computePatterns(events: LogEvent[], mode: Mode): Pattern[] {
+export function computePatterns(events: LogEvent[], mode: Mode, stage?: Stage): Pattern[] {
   const patterns: Pattern[] = [];
   if (events.length === 0) return patterns;
 
   // Повторяемость симптома в один и тот же день цикла — только там, где
   // цикл вообще есть и не является нерегулярным по определению режима.
-  if (mode === "cycle" || mode === "ttc") {
+  if (mode === "cycle" || mode === "fertility") {
     const evidence = buildSymptomCycleEvidence(events);
     if (evidence) {
       patterns.push({
@@ -58,7 +58,7 @@ export function computePatterns(events: LogEvent[], mode: Mode): Pattern[] {
   const chips = [...chipFrequency(events).entries()].sort((a, b) => b[1] - a[1]);
   const [topChipId, topChipCount] = chips[0] ?? [];
   if (topChipId && topChipCount && topChipCount >= 2) {
-    const label = getChipConfig(mode, topChipId)?.label ?? topChipId;
+    const label = getChipConfig(mode, stage, topChipId)?.label ?? topChipId;
     patterns.push({
       id: "top-chip",
       title: `Чаще всего ты отмечаешь: ${label.toLowerCase()}`,

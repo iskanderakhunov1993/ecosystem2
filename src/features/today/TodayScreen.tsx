@@ -5,11 +5,12 @@ import { MonthCalendar, WeekStrip, monthTitle } from "@/components/Calendar";
 import { Ring } from "@/components/Ring";
 import { SafetyBanner } from "@/components/SafetyBanner";
 import { Icon } from "@/data/icons";
-import { MODE_LABELS, QUICK_LOG } from "@/data/modes.config";
+import { getQuickLog, MODE_LABELS, STAGE_LABELS } from "@/data/modes.config";
 import { dateKey, derive, formatDate, formatDayHeading, formatTime, pluralRu, startOfDay } from "@/lib/derive";
 import { evaluateSafety } from "@/lib/safety";
 import { useAppStore } from "@/store/appStore";
-import type { LogEvent, Mode, Profile, Session } from "@/lib/types";
+import { stageOf } from "@/lib/types";
+import type { LogEvent, Mode, Profile, Session, Stage } from "@/lib/types";
 
 interface HeroData {
   value: number;
@@ -20,21 +21,28 @@ interface HeroData {
   segment?: { from: number; to: number };
 }
 
-function heroFor(mode: Mode, profile: Profile): HeroData {
-  const data = derive(mode, profile);
+function heroFor(mode: Mode, stage: Stage | undefined, profile: Profile): HeroData {
+  const data = derive(mode, stage, profile);
 
   switch (data.kind) {
     case "cycle": {
-      const isTtc = mode === "ttc";
-      const sublabel = isTtc && data.inFertileWindow ? "ОКНО ФЕРТИЛЬНОСТИ" : data.phase;
+      return {
+        value: data.cycleDay,
+        max: data.cycleLen,
+        label: String(data.cycleDay),
+        sublabel: `${data.phase} · ДЕНЬ ${data.cycleDay}`,
+        caption: `До следующей менструации ${data.daysToNextPeriod} ${pluralRu(data.daysToNextPeriod, "день", "дня", "дней")} — ожидается ${formatDate(data.nextPeriodDate)}.`,
+        segment: { from: data.fertileFrom, to: data.fertileTo },
+      };
+    }
+    case "fertility": {
+      const sublabel = data.inFertileWindow ? "ОКНО ФЕРТИЛЬНОСТИ" : data.phase;
       return {
         value: data.cycleDay,
         max: data.cycleLen,
         label: String(data.cycleDay),
         sublabel: `${sublabel} · ДЕНЬ ${data.cycleDay}`,
-        caption: isTtc
-          ? `Окно фертильности: дни ${data.fertileFrom}–${data.fertileTo}. Следующая менструация ожидается ${formatDate(data.nextPeriodDate)}.`
-          : `До следующей менструации ${data.daysToNextPeriod} ${pluralRu(data.daysToNextPeriod, "день", "дня", "дней")} — ожидается ${formatDate(data.nextPeriodDate)}.`,
+        caption: `Окно фертильности: дни ${data.fertileFrom}–${data.fertileTo}. Следующая менструация ожидается ${formatDate(data.nextPeriodDate)}.`,
         segment: { from: data.fertileFrom, to: data.fertileTo },
       };
     }
@@ -87,7 +95,7 @@ interface TodayEntry {
   timestamp: number;
 }
 
-function todaySnapshot(events: LogEvent[], mode: Mode, now = Date.now()): TodayEntry[] {
+function todaySnapshot(events: LogEvent[], mode: Mode, stage: Stage | undefined, now = Date.now()): TodayEntry[] {
   const from = startOfDay(now);
   const latest = new Map<string, LogEvent>();
   for (const event of events) {
@@ -98,7 +106,7 @@ function todaySnapshot(events: LogEvent[], mode: Mode, now = Date.now()): TodayE
     .sort((a, b) => b.timestamp - a.timestamp)
     .map((event) => ({
       chipId: event.chipId,
-      label: QUICK_LOG[mode].find((chip) => chip.id === event.chipId)?.label ?? event.chipId,
+      label: getQuickLog(mode, stage).find((chip) => chip.id === event.chipId)?.label ?? event.chipId,
       summary: event.summary,
       timestamp: event.timestamp,
     }));
@@ -117,14 +125,14 @@ interface DayItem {
 }
 
 /** Всё, что записано в конкретный день: и отметки, и сессии. */
-function itemsForDay(events: LogEvent[], sessions: Session[], mode: Mode, day: number): DayItem[] {
+function itemsForDay(events: LogEvent[], sessions: Session[], mode: Mode, stage: Stage | undefined, day: number): DayItem[] {
   const key = dateKey(day);
   const fromEvents = events
     .filter((event) => dateKey(event.timestamp) === key)
     .map((event) => ({
       id: event.id,
       timestamp: event.timestamp,
-      title: QUICK_LOG[mode].find((chip) => chip.id === event.chipId)?.label ?? event.chipId,
+      title: getQuickLog(mode, stage).find((chip) => chip.id === event.chipId)?.label ?? event.chipId,
       detail: event.summary,
     }));
   const fromSessions = sessions
@@ -153,11 +161,12 @@ export function TodayScreen() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(Date.now()));
 
-  const hero = useMemo(() => heroFor(mode, profile), [mode, profile]);
-  const entries = useMemo(() => todaySnapshot(events, mode), [events, mode]);
+  const stage = stageOf(profile);
+  const hero = useMemo(() => heroFor(mode, stage, profile), [mode, stage, profile]);
+  const entries = useMemo(() => todaySnapshot(events, mode, stage), [events, mode, stage]);
   const sessionsToday = useMemo(() => todaySessions(sessions), [sessions]);
   const loggedChipIds = new Set(entries.map((entry) => entry.chipId));
-  const safetyAdvisories = useMemo(() => evaluateSafety(mode, events), [mode, events]);
+  const safetyAdvisories = useMemo(() => evaluateSafety(mode, stage, events), [mode, stage, events]);
 
   /** Точка под числом ставится только там, где реально есть запись. */
   const markedDays = useMemo(() => {
@@ -169,8 +178,8 @@ export function TodayScreen() {
 
   const isToday = dateKey(selectedDay) === dateKey(Date.now());
   const selectedItems = useMemo(
-    () => (isToday ? [] : itemsForDay(events, sessions, mode, selectedDay)),
-    [isToday, events, sessions, mode, selectedDay]
+    () => (isToday ? [] : itemsForDay(events, sessions, mode, stage, selectedDay)),
+    [isToday, events, sessions, mode, stage, selectedDay]
   );
 
   const selectDay = (ts: number) => {
@@ -183,7 +192,9 @@ export function TodayScreen() {
       {undoBanner && (
         <div className="flex items-center gap-3 rounded-card border border-accent/40 bg-accent-soft px-4 py-3">
           <p className="min-w-0 flex-1 text-[13px] leading-snug text-text">
-            Переключили на «{MODE_LABELS[undoBanner.to]}».
+            Переключили на «{undoBanner.from === undoBanner.to && undoBanner.toStage
+              ? STAGE_LABELS[undoBanner.toStage]
+              : MODE_LABELS[undoBanner.to]}».
           </p>
           <button
             type="button"
@@ -298,7 +309,7 @@ export function TodayScreen() {
             )}
 
             <div className="mt-3 grid grid-cols-5 gap-1.5">
-              {QUICK_LOG[mode].map((chip) => (
+              {getQuickLog(mode, stage).map((chip) => (
                 <Chip
                   key={chip.id}
                   icon={chip.icon}
@@ -317,7 +328,7 @@ export function TodayScreen() {
           max={hero.max}
           label={hero.label}
           sublabel={hero.sublabel}
-          segment={mode === "ttc" ? hero.segment : undefined}
+          segment={mode === "fertility" ? hero.segment : undefined}
         />
         {hero.caption && (
           <p className="mt-5 max-w-[320px] text-center text-[13px] leading-snug text-text-dim">
@@ -328,7 +339,7 @@ export function TodayScreen() {
 
       <Card title="Быстрая запись">
         <div className="grid grid-cols-5 gap-1.5">
-          {QUICK_LOG[mode].map((chip) => (
+          {getQuickLog(mode, stage).map((chip) => (
             <Chip
               key={chip.id}
               icon={chip.icon}
