@@ -1,13 +1,13 @@
-# Mira Product Specification
+# Livi Product Specification
 
 ## Product Positioning
 
-Mira is a private daily diary for women's cycle and wellbeing. It turns simple
+Livi is a private daily diary for women's cycle and wellbeing. It turns simple
 self-reported check-ins into a personal norm, clear pattern explanations, and a
 doctor-ready report that helps the user discuss symptoms with facts instead of
 memory.
 
-Mira is not a diagnostic product, fertility predictor, calorie-policing tool,
+Livi is not a diagnostic product, fertility predictor, calorie-policing tool,
 or static workout program.
 
 ## Target User
@@ -46,7 +46,7 @@ without being prescriptive or diagnostic.
 
 ## Core Value Proposition
 
-Instead of asking a user to remember scattered symptoms and dates, Mira creates
+Instead of asking a user to remember scattered symptoms and dates, Livi creates
 a structured health diary. The user can see what repeats, what may be outside
 their personal pattern, and what is worth taking to a clinician.
 
@@ -61,7 +61,7 @@ their personal pattern, and what is worth taking to a clinician.
 
 ## Main Navigation
 
-Действующая навигация — в `apps/mira`. Две вкладки; критерий для вкладки —
+Действующая навигация — в приложении. Две вкладки; критерий для вкладки —
 **свой вопрос пользователя и своя частота открытия**. Раздел, у которого нет
 ни того, ни другого, — это экран внутри чужой вкладки, а не вкладка.
 
@@ -99,7 +99,7 @@ Layout, компоненты и паттерны взаимодействия о
 меняются акцентный цвет и содержимое, не структура. Позиции вкладок не
 меняются никогда — женщина за пять лет может пройти три режима.
 
-Islamic mode остаётся контекстной настройкой в `apps/web` и подлежит переносу.
+Islamic mode остаётся контекстной настройкой в `legacy/web` и подлежит переносу.
 
 ## MVP Scope
 

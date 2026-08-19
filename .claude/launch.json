@@ -2,23 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "mira-web",
+      "name": "livi",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "port": 4173
-    },
-    {
-      "name": "mira-app",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev",
-        "--prefix",
-        "apps/mira"
-      ],
+      "runtimeArgs": ["run", "dev"],
       "port": 5180
     }
   ]

@@ -11,7 +11,7 @@ export function GoalStep({ value, onChange }: GoalStepProps) {
   return (
     <div className="pt-2">
       <h1 className="font-display text-[24px] font-semibold leading-tight text-text">
-        Что привело тебя в Mira?
+        Что привело тебя в Livi?
       </h1>
       <p className="mt-2 text-[13px] leading-snug text-text-dim">
         От этого зависит стартовый режим — потом его можно поменять по жизненному событию.

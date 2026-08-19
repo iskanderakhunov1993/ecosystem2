@@ -79,7 +79,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             checked={privacy.anonymousMode}
             onChange={setAnonymousMode}
             label="Anonymous Mode"
-            description="Скрывает Mira под нейтральной иконкой и именем"
+            description="Скрывает Livi под нейтральной иконкой и именем"
           />
         </div>
 
@@ -118,7 +118,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             <div>
               <p className="text-[13px] leading-snug text-text">
                 Это удалит профили, логи и сессии всех режимов без возможности восстановления. После
-                удаления Mira вернётся к онбордингу — данных для дашборда больше не будет.
+                удаления Livi вернётся к онбордингу — данных для дашборда больше не будет.
               </p>
               <div className="mt-4 space-y-2">
                 <Button

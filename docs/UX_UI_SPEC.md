@@ -1,6 +1,6 @@
-# Mira UX And UI Specification
+# Livi UX And UI Specification
 
-Описывает `apps/mira` — базу продукта. `apps/web` использует более старую
+Описывает приложение в корне репозитория. `legacy/web` использует более старую
 светлую систему и постепенно выводится из обращения.
 
 ## Design Principles
@@ -22,7 +22,7 @@
 
 ### Токены
 
-Объявлены в `apps/mira/src/styles/tokens.css`.
+Объявлены в `src/styles/tokens.css`.
 
 | Роль | Значение |
 |---|---|

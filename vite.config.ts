@@ -11,8 +11,8 @@ export default defineConfig({
       includeAssets: ["favicon.svg", "icons/apple-touch-icon.png"],
       manifest: {
         id: "/",
-        name: "Mira",
-        short_name: "Mira",
+        name: "Livi",
+        short_name: "Livi",
         description:
           "Женский health-трекер с адаптивными режимами: цикл, планирование, беременность, восстановление, перименопауза, менопауза.",
         start_url: "/",

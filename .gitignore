@@ -1,26 +1,14 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
-# Expo
-.expo/
-.next/
+# build output
 dist/
-web-build/
-expo-env.d.ts
+dev-dist/
+.next/
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
+# tooling
+*.tsbuildinfo
+.vercel
 
 # debug
 npm-debug.*
@@ -36,18 +24,5 @@ yarn-error.*
 .env.local
 .env*.local
 
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
-DerivedData/
-.build/
-xcuserdata/
-*.xcuserstate
-
-# generated Vite config outputs
-apps/web/.next/
-apps/web/vite.config.js
-apps/web/vite.config.d.ts
+# legacy Next.js app
+legacy/web/.next/

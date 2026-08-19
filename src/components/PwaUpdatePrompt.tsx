@@ -28,7 +28,7 @@ export function PwaUpdatePrompt() {
   return (
     <div className="fixed inset-x-4 bottom-[calc(88px+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-[488px] items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
       <p className="min-w-0 flex-1 text-[13px] leading-snug text-text-dim">
-        {needRefresh ? "Доступна новая версия Mira." : "Mira готова работать офлайн."}
+        {needRefresh ? "Доступна новая версия Livi." : "Livi готова работать офлайн."}
       </p>
       {needRefresh && (
         <>

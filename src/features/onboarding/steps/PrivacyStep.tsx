@@ -19,7 +19,7 @@ export function PrivacyStep({ consented, anonymousMode, onConsent, onAnonymous }
         {[
           "Данные хранятся локально на устройстве и не передаются третьим лицам без твоего согласия.",
           "Экспортировать или удалить всё можно в любой момент в Settings.",
-          "Можно включить Anonymous Mode — Mira будет скрыта под нейтральным именем и иконкой.",
+          "Можно включить Anonymous Mode — Livi будет скрыта под нейтральным именем и иконкой.",
         ].map((text) => (
           <li key={text} className="flex gap-3 rounded-card border border-border bg-surface p-3.5">
             <span className="mt-0.5 text-accent">
@@ -46,7 +46,7 @@ export function PrivacyStep({ consented, anonymousMode, onConsent, onAnonymous }
           {consented && <Icon name="check" size={13} strokeWidth={2.4} />}
         </span>
         <span className="text-[14px] font-medium leading-snug text-text">
-          Я согласна с тем, как Mira хранит и обрабатывает мои данные
+          Я согласна с тем, как Livi хранит и обрабатывает мои данные
         </span>
       </button>
 
@@ -55,7 +55,7 @@ export function PrivacyStep({ consented, anonymousMode, onConsent, onAnonymous }
           checked={anonymousMode}
           onChange={onAnonymous}
           label="Anonymous Mode"
-          description="Скрывает Mira под нейтральной иконкой и именем"
+          description="Скрывает Livi под нейтральной иконкой и именем"
         />
       </div>
     </div>

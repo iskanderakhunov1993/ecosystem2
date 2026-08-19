@@ -148,7 +148,7 @@ export function OnboardingWizard() {
 
       <div className="space-y-2">
         {step === "done" ? (
-          <Button onClick={finish}>Начать пользоваться Mira</Button>
+          <Button onClick={finish}>Начать пользоваться Livi</Button>
         ) : (
           <Button disabled={!canAdvance} onClick={() => setIndex((value) => value + 1)}>
             {step === "welcome" ? "Начать" : "Далее"}

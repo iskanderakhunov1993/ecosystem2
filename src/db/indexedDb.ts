@@ -7,10 +7,10 @@ import { MODES } from "@/lib/types";
  * logEvents — append-only, запросы по режиму и по диапазону дат идут через индексы.
  */
 
-const DB_NAME = "mira";
+const DB_NAME = "livi";
 const DB_VERSION = 1;
 
-interface MiraDB extends DBSchema {
+interface LiviDB extends DBSchema {
   meta: {
     key: string;
     value: unknown;
@@ -31,11 +31,11 @@ interface MiraDB extends DBSchema {
   };
 }
 
-let dbPromise: Promise<IDBPDatabase<MiraDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<LiviDB>> | null = null;
 
-function getDb(): Promise<IDBPDatabase<MiraDB>> {
+function getDb(): Promise<IDBPDatabase<LiviDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<MiraDB>(DB_NAME, DB_VERSION, {
+    dbPromise = openDB<LiviDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
         db.createObjectStore("meta");
         db.createObjectStore("profiles", { keyPath: "mode" });

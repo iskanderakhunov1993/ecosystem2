@@ -1,8 +1,8 @@
-# Mira: MVP architecture
+# Livi: MVP architecture
 
 ## Product principle
 
-Mira is not a calorie tracker or a static workout plan. Its primary product
+Livi is not a calorie tracker or a static workout plan. Its primary product
 object is a daily decision:
 
 > Given the woman's current state, what type of movement and support is useful
@@ -19,11 +19,11 @@ it with minimal input.
 2. Select self-reported limitations without diagnosis language.
 3. Optionally add cycle context and symptoms.
 4. Complete a guided front, side and back body scan.
-5. Receive the first explanation of how Mira will adapt the next day.
+5. Receive the first explanation of how Livi will adapt the next day.
 
 ### Daily loop
 
-1. Mira imports sleep and activity when available.
+1. Livi imports sleep and activity when available.
 2. User completes a sub-minute energy, mood, soreness and pain check-in.
 3. Decision engine computes readiness and chooses a session policy.
 4. AI generates a structured workout from an approved exercise library.
@@ -58,7 +58,7 @@ supabase/
   functions/           Secure AI orchestration
 deploy/                Конфигурация развёртывания
 docs/
-  MIRA_ARCHITECTURE.md
+  ARCHITECTURE.md
   PRODUCT_SPEC.md
   UX_UI_SPEC.md
   AI_SPEC.md
@@ -71,7 +71,7 @@ docs/
 
 ## Frontend architecture
 
-### `apps/mira` — база продукта
+### Приложение в корне — база продукта
 
 - React 18 + TypeScript + Vite. Роутинга нет: одна SPA-панель с двумя
   вкладками и уровнями вглубь через локальное состояние экрана.
@@ -87,17 +87,17 @@ docs/
 Запись за прошлый день ставится на полдень выбранной даты, чтобы не зависеть
 от часового пояса. Будущие даты запрещены на уровне интерфейса.
 
-### `apps/web` — предыдущая версия
+### `legacy/web` — предыдущая версия
 
 - Next.js 15 App Router + React 19.
 - Состояние: Zustand с `persist` в localStorage, валидация Zod при регидрации.
 - Supabase для авторизации и синхронизации.
 
-Историческая особенность: в `apps/web` два параллельных слоя персистентности —
+Историческая особенность: в `legacy/web` два параллельных слоя персистентности —
 zustand-стор и более старый `MiraLocalData` в `lib/store.ts`. Доменные модули
 `lib/*` — чистые функции, принимающие `MiraLocalData` параметром, поэтому
 проекция состояния в эту форму решает проблему без переписывания аналитики.
-При переносе в `apps/mira` этот слой не воспроизводится: там хранилище одно.
+При переносе этот слой не воспроизводится: там хранилище одно.
 
 Never put an OpenAI API key in web or mobile clients.
 
@@ -254,7 +254,7 @@ Self-reported symptoms and individual history outweigh phase assumptions.
 
 Направление — **Quiet Clinical**: тёмная сдержанная medtech-эстетика. Полное
 описание — в [UX_UI_SPEC.md](UX_UI_SPEC.md), токены — в
-`apps/mira/src/styles/tokens.css`.
+`src/styles/tokens.css`.
 
 ```text
 Screen bg   #12141A  фон экрана
@@ -288,8 +288,7 @@ Principles:
 
 ### Фаза 0 — консолидация (текущая)
 
-Два приложения с пересекающимся смыслом надо свести в одно. `apps/mira` —
-основа, из `apps/web` переносится зрелая функциональность.
+Два приложения с пересекающимся смыслом надо свести в одно. Приложение в корне —основа, из `legacy/web` переносится зрелая функциональность.
 
 - Перенести анализы с референсами и оценкой отклонений.
 - Перенести напоминания (`personalReminders.ts`).
@@ -311,7 +310,7 @@ Principles:
 
 ### Фаза 2 — облако и синхронизация
 
-- Supabase auth и синхронизация между устройствами в `apps/mira`.
+- Supabase auth и синхронизация между устройствами.
 - Row Level Security, экспорт и удаление по запросу.
 - PDF-экспорт отчёта врачу вместо текстового.
 

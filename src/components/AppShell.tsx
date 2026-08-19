@@ -33,7 +33,7 @@ export function AppShell() {
   const events = useAppStore((state) => state.logEvents[state.mode]);
 
   useEffect(() => {
-    document.title = anonymous ? "Заметки" : "Mira";
+    document.title = anonymous ? "Заметки" : "Livi";
   }, [anonymous]);
 
   const Screen = SCREENS[activeTab];

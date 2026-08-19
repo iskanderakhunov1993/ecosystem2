@@ -1,9 +1,9 @@
-# Mira AI Specification
+# Livi AI Specification
 
 > **Статус: проектный документ, не реализация.**
 >
-> В `apps/mira` AI-вызовов нет вообще: подбор нагрузки, паттерны, прогнозы и
-> отчёт врачу считаются детерминированно из лога событий. В `apps/web` есть
+> В приложении AI-вызовов нет вообще: подбор нагрузки, паттерны, прогнозы и
+> отчёт врачу считаются детерминированно из лога событий. В `legacy/web` есть
 > заготовки edge-функций в `supabase/functions/`, но продуктовые сценарии на
 > них не построены.
 >
@@ -17,7 +17,7 @@
 
 ## AI Architecture
 
-Mira uses a hybrid decision system. Deterministic policy owns safety,
+Livi uses a hybrid decision system. Deterministic policy owns safety,
 eligibility, and exercise constraints. AI is limited to structured composition,
 summarization, and bounded image-assisted estimates. AI never bypasses safety
 rules or invents exercises outside the curated library.
