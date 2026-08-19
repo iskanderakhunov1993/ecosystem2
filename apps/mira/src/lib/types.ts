@@ -15,12 +15,12 @@ export const MODES: Mode[] = [
   "menopause",
 ];
 
-export type TabId =
-  | "today"
-  | "history"
-  | "analytics"
-  | "patterns"
-  | "predictions";
+/**
+ * «История» убрана: календарь переехал в «Сегодня», где он и нужен — при отметке.
+ * Аналитика, паттерны и прогнозы слиты в «Мой цикл»: это один вопрос пользователя,
+ * а графики и детали прогноза уехали на второй уровень.
+ */
+export type TabId = "today" | "cycle";
 
 /** Значение поля профиля: число (день/неделя/длина) или качественная метка. */
 export type ProfileValue = number | string;

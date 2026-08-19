@@ -5,10 +5,7 @@ import { formatDate } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
 import type { TabId } from "@/lib/types";
 import { TodayScreen } from "@/features/today/TodayScreen";
-import { HistoryScreen } from "@/features/history/HistoryScreen";
-import { AnalyticsScreen } from "@/features/analytics/AnalyticsScreen";
-import { PatternsScreen } from "@/features/patterns/PatternsScreen";
-import { PredictionsScreen } from "@/features/predictions/PredictionsScreen";
+import { CycleScreen } from "@/features/cycle/CycleScreen";
 import { LogSheet } from "@/features/today/LogSheet";
 import { WorkoutSheet } from "@/features/today/WorkoutSheet";
 import { LifeStageGate } from "@/features/life-stage-gate/LifeStageGate";
@@ -16,18 +13,12 @@ import { SettingsSheet } from "@/features/settings/SettingsSheet";
 
 const TABS: { id: TabId; label: string; icon: IconName }[] = [
   { id: "today", label: "Сегодня", icon: "today" },
-  { id: "history", label: "История", icon: "history" },
-  { id: "analytics", label: "Аналитика", icon: "analytics" },
-  { id: "patterns", label: "Паттерны", icon: "patterns" },
-  { id: "predictions", label: "Прогнозы", icon: "predictions" },
+  { id: "cycle", label: "Мой цикл", icon: "analytics" },
 ];
 
 const SCREENS: Record<TabId, () => JSX.Element> = {
   today: TodayScreen,
-  history: HistoryScreen,
-  analytics: AnalyticsScreen,
-  patterns: PatternsScreen,
-  predictions: PredictionsScreen,
+  cycle: CycleScreen,
 };
 
 export function AppShell() {
@@ -107,7 +98,13 @@ export function AppShell() {
       </nav>
 
       {sheet?.type === "log" && (
-        <LogSheet key={`${mode}-${sheet.chipId}`} mode={mode} chipId={sheet.chipId} onClose={closeSheet} />
+        <LogSheet
+          key={`${mode}-${sheet.chipId}-${sheet.date ?? 0}`}
+          mode={mode}
+          chipId={sheet.chipId}
+          date={sheet.date}
+          onClose={closeSheet}
+        />
       )}
       {sheet?.type === "activity" && (
         <WorkoutSheet mode={mode} events={events} onClose={closeSheet} />

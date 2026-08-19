@@ -13,7 +13,7 @@ import type {
 } from "@/lib/types";
 
 export type SheetState =
-  | { type: "log"; chipId: string }
+  | { type: "log"; chipId: string; date?: number }
   | { type: "gate" }
   | { type: "settings" }
   | { type: "activity" }

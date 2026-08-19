@@ -3,6 +3,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { Button } from "@/components/Button";
 import { FieldLabel, OptionChips, Scale5, Stepper } from "@/components/inputs";
 import { MOOD_SCALE_LABELS, getChipConfig, type LogGroup } from "@/data/modes.config";
+import { dateKey, formatDate, startOfDay } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
 import type { Mode } from "@/lib/types";
 
@@ -34,6 +35,8 @@ function groupSummary(group: LogGroup, value: GroupValue): string | null {
 interface LogSheetProps {
   mode: Mode;
   chipId: string;
+  /** Дата записи. Без неё — сегодня; с ней — дозаполнение прошлого дня из календаря. */
+  date?: number;
   onClose: () => void;
 }
 
@@ -41,7 +44,7 @@ interface LogSheetProps {
  * Bottom sheet поверх Today. Сохранение пушит событие в append-only лог
  * и возвращает пользователя на Today — промежуточных экранов нет.
  */
-export function LogSheet({ mode, chipId, onClose }: LogSheetProps) {
+export function LogSheet({ mode, chipId, date, onClose }: LogSheetProps) {
   const addLogEvent = useAppStore((state) => state.addLogEvent);
   const chip = getChipConfig(mode, chipId);
 
@@ -60,6 +63,9 @@ export function LogSheet({ mode, chipId, onClose }: LogSheetProps) {
 
   if (!chip) return null;
 
+  const isBackfill = date !== undefined && dateKey(date) !== dateKey(Date.now());
+  const backfillNoon = date === undefined ? undefined : startOfDay(date) + 12 * 60 * 60 * 1000;
+
   const save = () => {
     const multiGroup = chip.groups.find((group) => group.type === "multi");
     const scaleGroup = chip.groups.find((group) => group.type === "scale5");
@@ -72,6 +78,8 @@ export function LogSheet({ mode, chipId, onClose }: LogSheetProps) {
       multiLabels: multiGroup ? values[multiGroup.id]?.selected : undefined,
       scaleVal: scaleGroup ? values[scaleGroup.id]?.scale ?? undefined : undefined,
       numericVal: numericGroup ? values[numericGroup.id]?.numeric ?? undefined : undefined,
+      // Запись за прошлый день ставится на полдень, чтобы не зависеть от часового пояса.
+      timestamp: isBackfill ? backfillNoon : undefined,
     });
     onClose();
   };
@@ -83,7 +91,16 @@ export function LogSheet({ mode, chipId, onClose }: LogSheetProps) {
     }));
 
   return (
-    <BottomSheet open title={chip.label} subtitle="Запись сохранится в сегодняшний день" onClose={onClose}>
+    <BottomSheet
+      open
+      title={chip.label}
+      subtitle={
+        isBackfill && date !== undefined
+          ? `Запись сохранится в ${formatDate(date)} — можно дозаполнить пропущенный день`
+          : "Запись сохранится в сегодняшний день"
+      }
+      onClose={onClose}
+    >
       <div className="space-y-6">
         {chip.groups.map((group) => (
           <div key={group.id}>

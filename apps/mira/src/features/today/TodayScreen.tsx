@@ -1,11 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
+import { MonthCalendar, WeekStrip, monthTitle } from "@/components/Calendar";
 import { Ring } from "@/components/Ring";
 import { SafetyBanner } from "@/components/SafetyBanner";
 import { Icon } from "@/data/icons";
 import { MODE_LABELS, QUICK_LOG } from "@/data/modes.config";
-import { derive, formatDate, formatTime, pluralRu, startOfDay } from "@/lib/derive";
+import { dateKey, derive, formatDate, formatDayHeading, formatTime, pluralRu, startOfDay } from "@/lib/derive";
 import { evaluateSafety } from "@/lib/safety";
 import { useAppStore } from "@/store/appStore";
 import type { LogEvent, Mode, Profile, Session } from "@/lib/types";
@@ -108,6 +109,35 @@ function todaySessions(sessions: Session[], now = Date.now()): Session[] {
   return sessions.filter((session) => session.timestamp >= from).sort((a, b) => b.timestamp - a.timestamp);
 }
 
+interface DayItem {
+  id: string;
+  timestamp: number;
+  title: string;
+  detail: string;
+}
+
+/** Всё, что записано в конкретный день: и отметки, и сессии. */
+function itemsForDay(events: LogEvent[], sessions: Session[], mode: Mode, day: number): DayItem[] {
+  const key = dateKey(day);
+  const fromEvents = events
+    .filter((event) => dateKey(event.timestamp) === key)
+    .map((event) => ({
+      id: event.id,
+      timestamp: event.timestamp,
+      title: QUICK_LOG[mode].find((chip) => chip.id === event.chipId)?.label ?? event.chipId,
+      detail: event.summary,
+    }));
+  const fromSessions = sessions
+    .filter((session) => dateKey(session.timestamp) === key)
+    .map((session) => ({
+      id: session.id,
+      timestamp: session.timestamp,
+      title: session.summary,
+      detail: session.detail,
+    }));
+  return [...fromEvents, ...fromSessions].sort((a, b) => b.timestamp - a.timestamp);
+}
+
 export function TodayScreen() {
   const mode = useAppStore((state) => state.mode);
   const profile = useAppStore((state) => state.profile[state.mode]);
@@ -118,11 +148,35 @@ export function TodayScreen() {
   const undoModeSwitch = useAppStore((state) => state.undoModeSwitch);
   const dismissUndoBanner = useAppStore((state) => state.dismissUndoBanner);
 
+  const [expanded, setExpanded] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(() => startOfDay(Date.now()));
+
   const hero = useMemo(() => heroFor(mode, profile), [mode, profile]);
   const entries = useMemo(() => todaySnapshot(events, mode), [events, mode]);
   const sessionsToday = useMemo(() => todaySessions(sessions), [sessions]);
   const loggedChipIds = new Set(entries.map((entry) => entry.chipId));
   const safetyAdvisories = useMemo(() => evaluateSafety(mode, events), [mode, events]);
+
+  /** Точка под числом ставится только там, где реально есть запись. */
+  const markedDays = useMemo(() => {
+    const set = new Set<string>();
+    for (const event of events) set.add(dateKey(event.timestamp));
+    for (const session of sessions) set.add(dateKey(session.timestamp));
+    return set;
+  }, [events, sessions]);
+
+  const isToday = dateKey(selectedDay) === dateKey(Date.now());
+  const selectedItems = useMemo(
+    () => (isToday ? [] : itemsForDay(events, sessions, mode, selectedDay)),
+    [isToday, events, sessions, mode, selectedDay]
+  );
+
+  const selectDay = (ts: number) => {
+    setSelectedDay(startOfDay(ts));
+    if (!expanded) setExpanded(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -152,6 +206,110 @@ export function TodayScreen() {
       {safetyAdvisories.map((advisory) => (
         <SafetyBanner key={advisory.id} advisory={advisory} />
       ))}
+
+      {/* Календарь живёт здесь, а не отдельной вкладкой: он нужен в момент отметки —
+          «я забыла отметить позавчера» решается одним тапом, не уходя с экрана. */}
+      <section className="rounded-card border border-border bg-surface p-3">
+        <header className="mb-2 flex items-center justify-between gap-3 px-1">
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+            className="flex items-center gap-1.5 text-text-dim"
+          >
+            <span className="mono-label">{expanded ? monthTitle(monthOffset) : "Календарь"}</span>
+            <span className={`transition-transform ${expanded ? "-rotate-90" : "rotate-90"}`}>
+              <Icon name="chevron" size={14} />
+            </span>
+          </button>
+
+          {expanded ? (
+            <span className="flex gap-1">
+              <button
+                type="button"
+                aria-label="Предыдущий месяц"
+                onClick={() => setMonthOffset((value) => value - 1)}
+                className="rotate-180 rounded-lg p-1.5 text-text-faint"
+              >
+                <Icon name="chevron" size={16} />
+              </button>
+              <button
+                type="button"
+                aria-label="Следующий месяц"
+                onClick={() => setMonthOffset((value) => Math.min(0, value + 1))}
+                disabled={monthOffset >= 0}
+                className="rounded-lg p-1.5 text-text-faint disabled:opacity-40"
+              >
+                <Icon name="chevron" size={16} />
+              </button>
+            </span>
+          ) : (
+            !isToday && (
+              <button
+                type="button"
+                onClick={() => setSelectedDay(startOfDay(Date.now()))}
+                className="text-[12px] text-accent-text underline underline-offset-2"
+              >
+                Сегодня
+              </button>
+            )
+          )}
+        </header>
+
+        {expanded ? (
+          <MonthCalendar
+            marked={markedDays}
+            selected={selectedDay}
+            monthOffset={monthOffset}
+            onSelect={(ts) => setSelectedDay(startOfDay(ts))}
+          />
+        ) : (
+          <WeekStrip
+            marked={markedDays}
+            selected={selectedDay}
+            weekOffset={weekOffset}
+            onSelect={selectDay}
+            onWeekChange={setWeekOffset}
+          />
+        )}
+
+        {/* Выбран прошлый день — показываем, что в нём записано, и даём дозаполнить. */}
+        {!isToday && (
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="mono-label mb-2 text-text-faint">{formatDayHeading(selectedDay)}</p>
+            {selectedItems.length === 0 ? (
+              <p className="text-[13px] leading-snug text-text-faint">
+                В этот день записей нет. Можно дозаполнить — это не поздно.
+              </p>
+            ) : (
+              <ul className="space-y-2.5">
+                {selectedItems.map((item) => (
+                  <li key={item.id} className="flex items-start gap-3">
+                    <span className="mono-label mt-0.5 w-[38px] shrink-0 text-text-faint">
+                      {formatTime(item.timestamp)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium text-text">{item.title}</span>
+                      <span className="block text-[12px] leading-snug text-text-dim">{item.detail}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="mt-3 grid grid-cols-5 gap-1.5">
+              {QUICK_LOG[mode].map((chip) => (
+                <Chip
+                  key={chip.id}
+                  icon={chip.icon}
+                  label={chip.label}
+                  onClick={() => openSheet({ type: "log", chipId: chip.id, date: selectedDay })}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
       <section className="flex flex-col items-center rounded-card border border-border bg-surface px-4 py-6">
         <Ring

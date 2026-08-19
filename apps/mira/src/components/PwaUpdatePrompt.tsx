@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { Icon } from "@/data/icons";
 
 /**
  * Service worker меняется редко — баннер появляется только когда есть
@@ -7,6 +8,7 @@ import { useRegisterSW } from "virtual:pwa-register/react";
  */
 export function PwaUpdatePrompt() {
   const [offlineReady, setOfflineReady] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const { needRefresh, updateServiceWorker } = useRegisterSW({
     onOfflineReady: () => setOfflineReady(true),
@@ -18,6 +20,9 @@ export function PwaUpdatePrompt() {
     return () => window.clearTimeout(timer);
   }, [offlineReady]);
 
+  // Баннер перекрывал карточки на каждом экране и не закрывался.
+  // Обновление можно отложить — оно применится при следующем запуске.
+  if (dismissed) return null;
   if (!needRefresh && !offlineReady) return null;
 
   return (
@@ -26,13 +31,23 @@ export function PwaUpdatePrompt() {
         {needRefresh ? "Доступна новая версия Mira." : "Mira готова работать офлайн."}
       </p>
       {needRefresh && (
-        <button
-          type="button"
-          onClick={() => updateServiceWorker(true)}
-          className="shrink-0 rounded-xl bg-accent px-3 py-2 text-[13px] font-semibold text-[#12141A]"
-        >
-          Обновить
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => updateServiceWorker(true)}
+            className="shrink-0 rounded-xl bg-accent px-3 py-2 text-[13px] font-semibold text-[#12141A]"
+          >
+            Обновить
+          </button>
+          <button
+            type="button"
+            aria-label="Закрыть"
+            onClick={() => setDismissed(true)}
+            className="shrink-0 text-text-faint"
+          >
+            <Icon name="close" size={16} />
+          </button>
+        </>
       )}
     </div>
   );

@@ -22,7 +22,9 @@ export function Chip({ icon, label, logged = false, onClick }: ChipProps) {
       ].join(" ")}
     >
       <Icon name={icon} size={22} />
-      <span className="w-full text-center text-[10px] font-medium leading-[1.2] [overflow-wrap:anywhere]">
+      {/* Переносы по слогам вместо разрыва посреди слова: «Настрое/ние» читалось как опечатка.
+          Работает благодаря lang="ru" на <html>. */}
+      <span className="w-full text-center text-[10px] font-medium leading-[1.2] [hyphens:auto] [overflow-wrap:break-word]">
         {label}
       </span>
       {logged && (
