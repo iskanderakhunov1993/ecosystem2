@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Icon, type IconName } from "@/data/icons";
-import { MODE_LABELS } from "@/data/modes.config";
+import { MODE_LABELS, getCycleTabLabel } from "@/data/modes.config";
 import { formatDate } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
 import { stageOf, type TabId } from "@/lib/types";
@@ -11,10 +11,10 @@ import { WorkoutSheet } from "@/features/today/WorkoutSheet";
 import { LifeStageGate } from "@/features/life-stage-gate/LifeStageGate";
 import { SettingsSheet } from "@/features/settings/SettingsSheet";
 
-const TABS: { id: TabId; label: string; icon: IconName }[] = [
-  { id: "today", label: "Сегодня", icon: "today" },
-  { id: "cycle", label: "Мой цикл", icon: "analytics" },
-];
+const TAB_ICONS: Record<TabId, IconName> = {
+  today: "today",
+  cycle: "analytics",
+};
 
 const SCREENS: Record<TabId, () => JSX.Element> = {
   today: TodayScreen,
@@ -38,6 +38,10 @@ export function AppShell() {
   }, [anonymous]);
 
   const Screen = SCREENS[activeTab];
+  const tabs: { id: TabId; label: string; icon: IconName }[] = [
+    { id: "today", label: "Сегодня", icon: TAB_ICONS.today },
+    { id: "cycle", label: getCycleTabLabel(mode, stage), icon: TAB_ICONS.cycle },
+  ];
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-[520px] flex-col">
@@ -79,7 +83,7 @@ export function AppShell() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-[520px] items-stretch border-t border-border bg-surface px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = tab.id === activeTab;
           return (
             <button

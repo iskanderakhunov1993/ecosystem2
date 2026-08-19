@@ -13,6 +13,8 @@ import {
   CORE_MODES,
   GATE_INTRO_TEXT,
   MODE_ACCENTS,
+  PREGNANCY_EXIT_TEXT,
+  PREGNANCY_EXIT_TITLE,
   STAGE_ACCENTS,
   STAGE_OPTIONS,
   SOFT_PROMPT_TEXT,
@@ -38,8 +40,16 @@ export function LifeStageGate({ onClose }: { onClose: () => void }) {
   const [target, setTarget] = useState<Mode | null>(null);
   const [targetStage, setTargetStage] = useState<Stage | null>(null);
   const [draft, setDraft] = useState<FieldDraft>({});
+  const [pregnancyExitAck, setPregnancyExitAck] = useState(false);
+
+  const leavingPregnancy = mode === "motherhood";
 
   const selectMode = (next: Mode) => {
+    if (leavingPregnancy && next === "cycle") {
+      // Отдельный экран-подтверждение — см. рендер ниже, до обычного confirm-шага.
+      setTarget(next);
+      return;
+    }
     if (hasStages(next)) {
       setTarget(next);
       setTargetStage(null);
@@ -47,6 +57,16 @@ export function LifeStageGate({ onClose }: { onClose: () => void }) {
     }
     setTarget(next);
     setDraft(initialDraft(next, undefined, profiles[next] ?? {}));
+  };
+
+  const confirmPregnancyExit = () => {
+    setPregnancyExitAck(true);
+    setDraft(initialDraft("cycle", undefined, profiles.cycle ?? {}));
+  };
+
+  const backToModeList = () => {
+    setTarget(null);
+    setPregnancyExitAck(false);
   };
 
   const selectStage = (stage: Stage) => {
@@ -119,6 +139,28 @@ export function LifeStageGate({ onClose }: { onClose: () => void }) {
     );
   }
 
+  // Отдельный экран, если уходим из беременности/после родов в «Отслеживать цикл» —
+  // без слова «завершить», без поздравлений, до обычного confirm-шага.
+  if (leavingPregnancy && target === "cycle" && !pregnancyExitAck) {
+    return (
+      <BottomSheet
+        open
+        title={PREGNANCY_EXIT_TITLE}
+        onClose={onClose}
+        footer={
+          <div className="space-y-2">
+            <Button onClick={confirmPregnancyExit}>Продолжить</Button>
+            <Button variant="ghost" onClick={backToModeList}>
+              Назад
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-[13px] leading-snug text-text-dim">{PREGNANCY_EXIT_TEXT}</p>
+      </BottomSheet>
+    );
+  }
+
   // Шаг 2 (только motherhood/menopause): выбор стадии внутри режима.
   if (hasStages(target) && !targetStage) {
     return (
@@ -127,7 +169,7 @@ export function LifeStageGate({ onClose }: { onClose: () => void }) {
         title="Уточни стадию"
         onClose={onClose}
         footer={
-          <Button variant="ghost" onClick={() => setTarget(null)}>
+          <Button variant="ghost" onClick={backToModeList}>
             Назад
           </Button>
         }
@@ -188,7 +230,7 @@ export function LifeStageGate({ onClose }: { onClose: () => void }) {
           <Button disabled={!isDraftComplete(target, targetStage ?? undefined, draft)} onClick={confirm}>
             {soft ? "Похоже, да — переключить" : "Переключить режим"}
           </Button>
-          <Button variant="ghost" onClick={() => (hasStages(target) ? setTargetStage(null) : setTarget(null))}>
+          <Button variant="ghost" onClick={() => (hasStages(target) ? setTargetStage(null) : backToModeList())}>
             {soft ? "Не сейчас" : "Отмена"}
           </Button>
         </div>
