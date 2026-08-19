@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/Card";
 import { ConfidenceTag } from "@/components/ConfidenceTag";
 import { Icon } from "@/data/icons";
-import { getQuickLog } from "@/data/modes.config";
+import { getCycleTabLabel, getQuickLog } from "@/data/modes.config";
 import { chipFrequency, detectCycleLengths } from "@/features/analytics/aggregations";
 import { AnalyticsScreen } from "@/features/analytics/AnalyticsScreen";
 import { DoctorReport } from "@/features/doctor/DoctorReport";
@@ -83,6 +83,7 @@ function buildMetrics(mode: Mode, stage: Stage | undefined, events: LogEvent[]):
 function primaryPrediction(mode: Mode, stage: Stage | undefined, profile: Profile, events: LogEvent[]) {
   const data = derive(mode, stage, profile);
   if (data.kind !== "cycle" && data.kind !== "fertility") return null;
+  if (data.unknownStart) return null;
 
   const lengths = detectCycleLengths(events);
   const uncertainty = predictionUncertainty(lengths);
@@ -140,7 +141,7 @@ export function CycleScreen() {
   if (detail === "prediction") {
     return (
       <div className="space-y-4">
-        <DetailHeader title="Мой цикл" onBack={() => setDetail(null)} />
+        <DetailHeader title={getCycleTabLabel(mode, stage)} onBack={() => setDetail(null)} />
         <PredictionsScreen />
       </div>
     );
@@ -149,7 +150,7 @@ export function CycleScreen() {
   if (detail === "metrics") {
     return (
       <div className="space-y-4">
-        <DetailHeader title="Мой цикл" onBack={() => setDetail(null)} />
+        <DetailHeader title={getCycleTabLabel(mode, stage)} onBack={() => setDetail(null)} />
         <AnalyticsScreen />
       </div>
     );
@@ -178,7 +179,9 @@ export function CycleScreen() {
       ) : (
         <Card title="Прогноз">
           <p className="text-[13px] leading-snug text-text-dim">
-            В этом режиме числовой прогноз не строится. Записи идут в наблюдения ниже.
+            {stage === "menopause"
+              ? "Менструальные прогнозы здесь не строятся. Любое кровотечение — повод обратиться к врачу."
+              : "В этом режиме числовой прогноз не строится. Записи идут в наблюдения ниже."}
           </p>
         </Card>
       )}

@@ -26,6 +26,15 @@ function heroFor(mode: Mode, stage: Stage | undefined, profile: Profile): HeroDa
 
   switch (data.kind) {
     case "cycle": {
+      if (data.unknownStart) {
+        return {
+          value: 0,
+          max: 1,
+          label: "~",
+          sublabel: "СТАРТ ЦИКЛА НЕИЗВЕСТЕН",
+          caption: "Отметь начало следующей менструации — тогда появится прогноз.",
+        };
+      }
       return {
         value: data.cycleDay,
         max: data.cycleLen,
@@ -36,6 +45,15 @@ function heroFor(mode: Mode, stage: Stage | undefined, profile: Profile): HeroDa
       };
     }
     case "fertility": {
+      if (data.unknownStart) {
+        return {
+          value: 0,
+          max: 1,
+          label: "~",
+          sublabel: "СТАРТ ЦИКЛА НЕИЗВЕСТЕН",
+          caption: "Отметь начало следующей менструации — тогда появится окно фертильности.",
+        };
+      }
       const sublabel = data.inFertileWindow ? "ОКНО ФЕРТИЛЬНОСТИ" : data.phase;
       return {
         value: data.cycleDay,

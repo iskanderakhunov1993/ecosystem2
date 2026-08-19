@@ -93,6 +93,33 @@ export const SOFT_PROMPT_TEXT =
 export const GATE_INTRO_TEXT =
   "Режим меняется по значимым событиям, а не вручную — так прогнозы и трекеры остаются точными для твоей ситуации сейчас.";
 
+/**
+ * Экран между выбором «Отслеживать цикл» и обычным подтверждением, если
+ * человек сейчас в motherhood. Без слова «завершить», без поздравлений.
+ * TODO: заменить плейсхолдер на реальный контакт линии поддержки, когда он появится.
+ */
+export const PREGNANCY_EXIT_TITLE = "Беременность больше не отслеживаем";
+export const PREGNANCY_EXIT_TEXT =
+  "Это может значить что угодно — и это твоё дело, не наше. Данные о беременности никуда не денутся: они сохранены, просто больше не на виду. Если нужно поговорить с кем-то — рядом есть служба поддержки.";
+
+/** Подпись второй вкладки — по режиму и стадии, вопрос у каждой стадии свой. */
+export const CYCLE_TAB_LABEL: Record<Mode, string> = {
+  cycle: "Мой цикл",
+  fertility: "Мой цикл",
+  motherhood: "Мой цикл",
+  menopause: "Мой цикл",
+};
+
+export const CYCLE_TAB_LABEL_BY_STAGE: Partial<Record<Stage, string>> = {
+  pregnancy: "Мой срок",
+  postpartum: "Мой путь",
+  menopause: "Моё тело",
+};
+
+export function getCycleTabLabel(mode: Mode, stage?: Stage): string {
+  return (stage && CYCLE_TAB_LABEL_BY_STAGE[stage]) ?? CYCLE_TAB_LABEL[mode];
+}
+
 /* ------------------------------------------------------------------ */
 /* Поля профиля / онбординга                                           */
 /* ------------------------------------------------------------------ */
@@ -127,8 +154,9 @@ const LAST_PERIOD_FIELD: OnboardField = {
   kind: "chips",
   key: "lastPeriodDays",
   label: "Когда началась последняя менструация?",
-  options: ["Сегодня", "3 дня назад", "Неделю назад", "2 недели назад", "3+ недели назад"],
-  valueMap: [0, 3, 7, 14, 25],
+  options: ["Сегодня", "3 дня назад", "Неделю назад", "2 недели назад", "3+ недели назад", "Не помню"],
+  // -1 — сентинел «не помню»: derive.ts проверяет lastPeriodDaysLabel, не это число.
+  valueMap: [0, 3, 7, 14, 25, -1],
 };
 
 const CYCLE_LEN_FIELD: OnboardField = {

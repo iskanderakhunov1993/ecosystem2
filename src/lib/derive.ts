@@ -48,6 +48,8 @@ export interface CycleDerived {
   fertileFrom: number;
   fertileTo: number;
   inFertileWindow: boolean;
+  /** Дата последних месячных неизвестна — прогноз посчитан от даты записи, не от факта. */
+  unknownStart?: boolean;
 }
 
 /** То же, что CycleDerived — вопрос пользователя другой («попали ли в окно»), поэтому свой kind. */
@@ -95,7 +97,10 @@ export type Derived =
 
 export function deriveCycle(profile: Profile, now = Date.now()): CycleDerived {
   const cycleLen = Math.min(40, Math.max(21, Math.round(num(profile, "cycleLen", 28))));
-  const elapsed = num(profile, "lastPeriodDays", 0) + daysSince(profile.updatedAt as number, now);
+  // "Не помню" пишет сентинел -1 в lastPeriodDays (см. modes.config.ts) — считаем от даты записи,
+  // как будто менструация началась сегодня, но помечаем прогноз как ненадёжный.
+  const unknownStart = str(profile, "lastPeriodDaysLabel") === "Не помню";
+  const elapsed = (unknownStart ? 0 : num(profile, "lastPeriodDays", 0)) + daysSince(profile.updatedAt as number, now);
   const cycleDay = (elapsed % cycleLen) + 1;
   const ovulationDay = cycleLen - 14;
 
@@ -120,6 +125,7 @@ export function deriveCycle(profile: Profile, now = Date.now()): CycleDerived {
     fertileFrom,
     fertileTo,
     inFertileWindow: cycleDay >= fertileFrom && cycleDay <= fertileTo,
+    unknownStart,
   };
 }
 
