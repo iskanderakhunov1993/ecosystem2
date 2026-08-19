@@ -1,0 +1,238 @@
+import { useMemo } from "react";
+import { Card } from "@/components/Card";
+import { Chip } from "@/components/Chip";
+import { Ring } from "@/components/Ring";
+import { SafetyBanner } from "@/components/SafetyBanner";
+import { Icon } from "@/data/icons";
+import { MODE_LABELS, QUICK_LOG } from "@/data/modes.config";
+import { derive, formatDate, formatTime, pluralRu, startOfDay } from "@/lib/derive";
+import { evaluateSafety } from "@/lib/safety";
+import { useAppStore } from "@/store/appStore";
+import type { LogEvent, Mode, Profile, Session } from "@/lib/types";
+
+interface HeroData {
+  value: number;
+  max: number;
+  label: string;
+  sublabel: string;
+  caption: string;
+  segment?: { from: number; to: number };
+}
+
+function heroFor(mode: Mode, profile: Profile): HeroData {
+  const data = derive(mode, profile);
+
+  switch (data.kind) {
+    case "cycle": {
+      const isTtc = mode === "ttc";
+      const sublabel = isTtc && data.inFertileWindow ? "ОКНО ФЕРТИЛЬНОСТИ" : data.phase;
+      return {
+        value: data.cycleDay,
+        max: data.cycleLen,
+        label: String(data.cycleDay),
+        sublabel: `${sublabel} · ДЕНЬ ${data.cycleDay}`,
+        caption: isTtc
+          ? `Окно фертильности: дни ${data.fertileFrom}–${data.fertileTo}. Следующая менструация ожидается ${formatDate(data.nextPeriodDate)}.`
+          : `До следующей менструации ${data.daysToNextPeriod} ${pluralRu(data.daysToNextPeriod, "день", "дня", "дней")} — ожидается ${formatDate(data.nextPeriodDate)}.`,
+        segment: { from: data.fertileFrom, to: data.fertileTo },
+      };
+    }
+    case "pregnancy":
+      return {
+        value: data.week,
+        max: 40,
+        label: String(data.week),
+        sublabel: `ТРИМЕСТР ${data.trimester} · НЕДЕЛЯ ${data.week}`,
+        caption: `До родов примерно ${data.weeksToBirth} ${pluralRu(data.weeksToBirth, "неделя", "недели", "недель")} — ориентировочно ${formatDate(data.dueDate)}.`,
+      };
+    case "postpartum":
+      return {
+        value: Math.min(data.daysAfter, 42),
+        max: 42,
+        label: String(data.week),
+        sublabel: `НЕДЕЛЯ ${data.week} ПОСЛЕ РОДОВ`,
+        caption:
+          data.daysToCheckup > 0
+            ? `До планового осмотра ${data.daysToCheckup} ${pluralRu(data.daysToCheckup, "день", "дня", "дней")}.`
+            : "Срок планового осмотра уже наступил.",
+      };
+    case "menopause":
+      return {
+        value: Math.min(data.monthsSince, 60),
+        max: 60,
+        label: String(data.monthsSince),
+        sublabel: "МЕСЯЦЕВ БЕЗ МЕНСТРУАЦИИ",
+        caption: "Трекинг сосредоточен на приливах, сне и самочувствии.",
+      };
+    case "perimenopause":
+      return {
+        value: 0,
+        max: 1,
+        label: "~",
+        sublabel: "ЦИКЛ НЕРЕГУЛЯРЕН",
+        caption: data.irregularForLabel
+          ? `Нерегулярность отмечена: ${data.irregularForLabel}. Числовой прогноз дня цикла здесь сознательно не строится.`
+          : "Числовой прогноз дня цикла здесь сознательно не строится.",
+      };
+    default:
+      return { value: 0, max: 1, label: "—", sublabel: "НЕТ ДАННЫХ", caption: "" };
+  }
+}
+
+interface TodayEntry {
+  chipId: string;
+  label: string;
+  summary: string;
+  timestamp: number;
+}
+
+function todaySnapshot(events: LogEvent[], mode: Mode, now = Date.now()): TodayEntry[] {
+  const from = startOfDay(now);
+  const latest = new Map<string, LogEvent>();
+  for (const event of events) {
+    if (event.timestamp < from) continue;
+    latest.set(event.chipId, event);
+  }
+  return [...latest.values()]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .map((event) => ({
+      chipId: event.chipId,
+      label: QUICK_LOG[mode].find((chip) => chip.id === event.chipId)?.label ?? event.chipId,
+      summary: event.summary,
+      timestamp: event.timestamp,
+    }));
+}
+
+function todaySessions(sessions: Session[], now = Date.now()): Session[] {
+  const from = startOfDay(now);
+  return sessions.filter((session) => session.timestamp >= from).sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export function TodayScreen() {
+  const mode = useAppStore((state) => state.mode);
+  const profile = useAppStore((state) => state.profile[state.mode]);
+  const events = useAppStore((state) => state.logEvents[state.mode]);
+  const sessions = useAppStore((state) => state.sessions[state.mode]);
+  const openSheet = useAppStore((state) => state.openSheet);
+  const undoBanner = useAppStore((state) => state.undoBanner);
+  const undoModeSwitch = useAppStore((state) => state.undoModeSwitch);
+  const dismissUndoBanner = useAppStore((state) => state.dismissUndoBanner);
+
+  const hero = useMemo(() => heroFor(mode, profile), [mode, profile]);
+  const entries = useMemo(() => todaySnapshot(events, mode), [events, mode]);
+  const sessionsToday = useMemo(() => todaySessions(sessions), [sessions]);
+  const loggedChipIds = new Set(entries.map((entry) => entry.chipId));
+  const safetyAdvisories = useMemo(() => evaluateSafety(mode, events), [mode, events]);
+
+  return (
+    <div className="space-y-4">
+      {undoBanner && (
+        <div className="flex items-center gap-3 rounded-card border border-accent/40 bg-accent-soft px-4 py-3">
+          <p className="min-w-0 flex-1 text-[13px] leading-snug text-text">
+            Переключили на «{MODE_LABELS[undoBanner.to]}».
+          </p>
+          <button
+            type="button"
+            onClick={undoModeSwitch}
+            className="shrink-0 text-[13px] font-medium text-accent-text underline underline-offset-2"
+          >
+            Отменить
+          </button>
+          <button
+            type="button"
+            aria-label="Закрыть"
+            onClick={dismissUndoBanner}
+            className="shrink-0 text-text-dim"
+          >
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+      )}
+
+      {safetyAdvisories.map((advisory) => (
+        <SafetyBanner key={advisory.id} advisory={advisory} />
+      ))}
+
+      <section className="flex flex-col items-center rounded-card border border-border bg-surface px-4 py-6">
+        <Ring
+          value={hero.value}
+          max={hero.max}
+          label={hero.label}
+          sublabel={hero.sublabel}
+          segment={mode === "ttc" ? hero.segment : undefined}
+        />
+        {hero.caption && (
+          <p className="mt-5 max-w-[320px] text-center text-[13px] leading-snug text-text-dim">
+            {hero.caption}
+          </p>
+        )}
+      </section>
+
+      <Card title="Быстрая запись">
+        <div className="grid grid-cols-5 gap-1.5">
+          {QUICK_LOG[mode].map((chip) => (
+            <Chip
+              key={chip.id}
+              icon={chip.icon}
+              label={chip.label}
+              logged={loggedChipIds.has(chip.id)}
+              onClick={() => openSheet({ type: "log", chipId: chip.id })}
+            />
+          ))}
+        </div>
+      </Card>
+
+      <Card title="Записано сегодня">
+        {entries.length === 0 && sessionsToday.length === 0 ? (
+          <p className="text-[13px] leading-snug text-text-faint">
+            Пока пусто. Тапни по чипу выше — запись появится здесь.
+          </p>
+        ) : (
+          <ul className="space-y-2.5">
+            {entries.map((entry) => (
+              <li key={entry.chipId} className="flex items-start gap-3">
+                <span className="mono-label mt-0.5 w-[38px] shrink-0 text-text-faint">
+                  {formatTime(entry.timestamp)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-medium text-text">{entry.label}</span>
+                  <span className="block text-[12px] leading-snug text-text-dim">{entry.summary}</span>
+                </span>
+              </li>
+            ))}
+            {sessionsToday.map((session) => (
+              <li key={session.id} className="flex items-start gap-3">
+                <span className="mono-label mt-0.5 w-[38px] shrink-0 text-text-faint">
+                  {formatTime(session.timestamp)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-medium text-text">{session.summary}</span>
+                  <span className="block text-[12px] leading-snug text-text-dim">{session.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <button
+        type="button"
+        onClick={() => openSheet({ type: "activity" })}
+        className="flex w-full items-center gap-3.5 rounded-card border border-border bg-surface p-4 text-left transition active:scale-[0.99]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-text">
+          <Icon name="workout" size={20} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-medium text-text">Тренировка или медитация</span>
+          <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">
+            Подбор по сегодняшнему самочувствию
+          </span>
+        </span>
+        <span className="text-text-faint">
+          <Icon name="chevron" size={18} />
+        </span>
+      </button>
+    </div>
+  );
+}
