@@ -3,9 +3,9 @@ import { Button } from "@/components/Button";
 import { Ring } from "@/components/Ring";
 import { FieldLabel, OptionChips } from "@/components/inputs";
 import { Icon } from "@/data/icons";
-import { MEDITATION_DURATIONS, MEDITATION_PROMPTS, MEDITATION_SOUNDS } from "@/data/modes.config";
+import { MEDITATION_DURATIONS, MEDITATION_SOUNDS, getMeditationPrompt } from "@/data/modes.config";
 import { useAppStore } from "@/store/appStore";
-import type { Mode } from "@/lib/types";
+import type { Mode, Stage } from "@/lib/types";
 
 function mmss(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -13,7 +13,15 @@ function mmss(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function MeditationTab({ mode, onDone }: { mode: Mode; onDone: () => void }) {
+export function MeditationTab({
+  mode,
+  stage,
+  onDone,
+}: {
+  mode: Mode;
+  stage?: Stage;
+  onDone: () => void;
+}) {
   const addSession = useAppStore((state) => state.addSession);
 
   const [minutes, setMinutes] = useState(MEDITATION_DURATIONS[0]);
@@ -60,7 +68,7 @@ export function MeditationTab({ mode, onDone }: { mode: Mode; onDone: () => void
   return (
     <div className="space-y-6">
       <p className="rounded-card border border-border bg-surface p-4 text-[13px] leading-snug text-text-dim">
-        {MEDITATION_PROMPTS[mode]}
+        {getMeditationPrompt(mode, stage)}
       </p>
 
       <div>

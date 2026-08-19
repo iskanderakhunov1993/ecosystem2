@@ -1,6 +1,30 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { AppData, LogEvent, Mode, Profile, PrivacyState, Session } from "@/lib/types";
+import type { AppData, LegacyMode, LogEvent, Mode, Profile, PrivacyState, Session, Stage } from "@/lib/types";
 import { MODES } from "@/lib/types";
+
+/**
+ * Свод 6 legacy-режимов до 4 core mode + stage. `ttc` → `fertility`,
+ * pregnancy/postpartum → `motherhood` + stage, perimenopause/menopause →
+ * `menopause` + stage. Записи под старыми ключами мержатся в новые.
+ */
+function migrateLegacyMode(raw: unknown): { mode: Mode; stage?: Stage } {
+  // Уже новый формат — пропускаем как есть, стадия читается из самого профиля.
+  if (typeof raw === "string" && (MODES as string[]).includes(raw)) {
+    return { mode: raw as Mode };
+  }
+  switch (raw as LegacyMode) {
+    case "ttc":
+      return { mode: "fertility" };
+    case "pregnancy":
+      return { mode: "motherhood", stage: "pregnancy" };
+    case "postpartum":
+      return { mode: "motherhood", stage: "postpartum" };
+    case "perimenopause":
+      return { mode: "menopause", stage: "perimenopause" };
+    default:
+      return { mode: "cycle" };
+  }
+}
 
 /**
  * Локально-first хранилище. Никакой синхронизации в облако по умолчанию.
@@ -86,14 +110,17 @@ export const DEFAULT_DATA: AppData = {
 export async function loadAll(): Promise<AppData> {
   const db = await getDb();
 
-  const [mode, onboarded, privacy] = await Promise.all([
-    db.get("meta", "mode") as Promise<Mode | undefined>,
+  const [rawMode, onboarded, privacy] = await Promise.all([
+    db.get("meta", "mode") as Promise<Mode | LegacyMode | undefined>,
     db.get("meta", "onboarded") as Promise<boolean | undefined>,
     db.get("meta", "privacy") as Promise<PrivacyState | undefined>,
   ]);
 
+  const activeMapped = rawMode ? migrateLegacyMode(rawMode) : { mode: DEFAULT_DATA.mode };
+  const mode = MODES.includes(activeMapped.mode) ? activeMapped.mode : DEFAULT_DATA.mode;
+
   const data: AppData = {
-    mode: mode && MODES.includes(mode) ? mode : DEFAULT_DATA.mode,
+    mode,
     onboarded: onboarded === true,
     profile: emptyByMode<Profile>(() => ({})),
     logEvents: emptyByMode<LogEvent[]>(() => []),
@@ -101,19 +128,39 @@ export async function loadAll(): Promise<AppData> {
     privacy: privacy ?? { consented: false, anonymousMode: false },
   };
 
+  // Легаси-профили под старыми ключами мержатся в новые: приоритет — тот,
+  // чья стадия совпадает с текущей активной, иначе самый свежий по updatedAt.
+  const profileCandidates: Record<Mode, { profile: Profile; stage?: Stage }[]> = emptyByMode(() => []);
   for (const row of await db.getAll("profiles")) {
-    if (MODES.includes(row.mode)) data.profile[row.mode] = row.profile;
+    const mapped = migrateLegacyMode(row.mode);
+    profileCandidates[mapped.mode].push({ profile: row.profile, stage: mapped.stage });
   }
-  for (const event of await db.getAll("logEvents")) {
-    if (MODES.includes(event.mode)) data.logEvents[event.mode].push(event);
-  }
-  for (const session of await db.getAll("sessions")) {
-    if (MODES.includes(session.mode)) data.sessions[session.mode].push(session);
+  for (const newMode of MODES) {
+    const candidates = profileCandidates[newMode];
+    if (candidates.length === 0) continue;
+    const matched = newMode === mode ? candidates.find((c) => c.stage === activeMapped.stage) : undefined;
+    const preferred =
+      matched ??
+      candidates.reduce((best, c) =>
+        (c.profile.updatedAt ?? 0) > (best.profile.updatedAt ?? 0) ? c : best,
+      );
+    data.profile[newMode] = preferred.stage
+      ? { ...preferred.profile, stage: preferred.stage }
+      : preferred.profile;
   }
 
-  for (const mode of MODES) {
-    data.logEvents[mode].sort((a, b) => a.timestamp - b.timestamp);
-    data.sessions[mode].sort((a, b) => a.timestamp - b.timestamp);
+  for (const event of await db.getAll("logEvents")) {
+    const mapped = migrateLegacyMode(event.mode);
+    data.logEvents[mapped.mode].push({ ...event, mode: mapped.mode });
+  }
+  for (const session of await db.getAll("sessions")) {
+    const mapped = migrateLegacyMode(session.mode);
+    data.sessions[mapped.mode].push({ ...session, mode: mapped.mode });
+  }
+
+  for (const m of MODES) {
+    data.logEvents[m].sort((a, b) => a.timestamp - b.timestamp);
+    data.sessions[m].sort((a, b) => a.timestamp - b.timestamp);
   }
 
   return data;

@@ -1,9 +1,9 @@
-import { QUICK_LOG } from "@/data/modes.config";
+import { getQuickLog } from "@/data/modes.config";
 import { chipFrequency, detectCycleLengths, labelFrequency } from "@/features/analytics/aggregations";
 import { computePatterns } from "@/features/patterns/computePatterns";
 import { dateKey, derive, formatDate, pluralRu, predictionUncertainty } from "@/lib/derive";
 import { evaluateSafety } from "@/lib/safety";
-import type { LogEvent, Mode, Profile, Session } from "@/lib/types";
+import type { LogEvent, Mode, Profile, Session, Stage } from "@/lib/types";
 
 const DAY_MS = 86_400_000;
 
@@ -54,13 +54,14 @@ function inRange(items: { timestamp: number }[], range: RangeKey, now: number) {
 }
 
 /** Ищет чип, отвечающий за боль/симптомы, — id отличаются между режимами. */
-function painChipId(mode: Mode): string | null {
-  const chip = QUICK_LOG[mode].find((item) => /symptom|pain|hotflash/.test(item.id));
+function painChipId(mode: Mode, stage: Stage | undefined): string | null {
+  const chip = getQuickLog(mode, stage).find((item) => /symptom|pain|hotflash/.test(item.id));
   return chip?.id ?? null;
 }
 
 export function buildReport(
   mode: Mode,
+  stage: Stage | undefined,
   profile: Profile,
   allEvents: LogEvent[],
   allSessions: Session[],
@@ -74,26 +75,26 @@ export function buildReport(
   for (const session of sessions) days.add(dateKey(session.timestamp));
 
   const counts = chipFrequency(events);
-  const painId = painChipId(mode);
+  const painId = painChipId(mode, stage);
   const painCount = painId ? counts.get(painId) ?? 0 : 0;
 
   /* ── Что стоит показать ──
      Блок появляется только если есть что показать. Пустым не бывает. */
-  const worthShowing = evaluateSafety(mode, events, now).map((advisory) => ({
+  const worthShowing = evaluateSafety(mode, stage, events, now).map((advisory) => ({
     title: advisory.title,
     message: advisory.message,
   }));
 
-  const patterns = computePatterns(events, mode);
+  const patterns = computePatterns(events, mode, stage);
   for (const pattern of patterns.slice(0, 2)) {
     worthShowing.push({ title: pattern.title, message: pattern.detail });
   }
 
   /* ── Главное: цифрами, в привычном врачу виде ── */
   const facts: ReportFact[] = [];
-  const data = derive(mode, profile, now);
+  const data = derive(mode, stage, profile, now);
 
-  if (data.kind === "cycle") {
+  if (data.kind === "cycle" || data.kind === "fertility") {
     const lengths = detectCycleLengths(allEvents);
     const spread = predictionUncertainty(lengths);
     facts.push({
@@ -137,7 +138,7 @@ export function buildReport(
   /* ── Вопросы: формулируются вопросами, а не утверждениями ── */
   const questions: string[] = [];
   if (painCount >= 8) questions.push("Симптомы повторяются каждый цикл — это норма для меня?");
-  if (data.kind === "cycle") {
+  if (data.kind === "cycle" || data.kind === "fertility") {
     const lengths = detectCycleLengths(allEvents);
     if (predictionUncertainty(lengths) >= 7) {
       questions.push("Цикл нерегулярный — нужно ли обследование?");

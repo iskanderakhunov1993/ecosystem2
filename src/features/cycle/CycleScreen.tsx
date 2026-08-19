@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/Card";
 import { ConfidenceTag } from "@/components/ConfidenceTag";
 import { Icon } from "@/data/icons";
-import { QUICK_LOG } from "@/data/modes.config";
+import { getQuickLog } from "@/data/modes.config";
 import { chipFrequency, detectCycleLengths } from "@/features/analytics/aggregations";
 import { AnalyticsScreen } from "@/features/analytics/AnalyticsScreen";
 import { DoctorReport } from "@/features/doctor/DoctorReport";
@@ -10,7 +10,8 @@ import { PATTERN_THRESHOLD, computePatterns, patternTier } from "@/features/patt
 import { PredictionsScreen } from "@/features/predictions/PredictionsScreen";
 import { derive, formatDate, pluralRu, predictionUncertainty } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
-import type { ConfidenceTier, LogEvent, Mode, Profile } from "@/lib/types";
+import { stageOf } from "@/lib/types";
+import type { ConfidenceTier, LogEvent, Mode, Profile, Stage } from "@/lib/types";
 
 type Detail = null | "prediction" | "metrics" | "doctor";
 
@@ -29,7 +30,7 @@ interface MetricRow {
  * Строка метрики вместо графика: шесть графиков подряд человек проматывает,
  * шесть строк — читает. Сам график открывается на втором уровне.
  */
-function buildMetrics(mode: Mode, events: LogEvent[]): MetricRow[] {
+function buildMetrics(mode: Mode, stage: Stage | undefined, events: LogEvent[]): MetricRow[] {
   const rows: MetricRow[] = [];
   const lengths = detectCycleLengths(events);
 
@@ -54,7 +55,7 @@ function buildMetrics(mode: Mode, events: LogEvent[]): MetricRow[] {
   }
 
   const counts = chipFrequency(events);
-  for (const chip of QUICK_LOG[mode]) {
+  for (const chip of getQuickLog(mode, stage)) {
     const count = counts.get(chip.id) ?? 0;
     if (count >= METRIC_THRESHOLD) {
       rows.push({
@@ -79,9 +80,9 @@ function buildMetrics(mode: Mode, events: LogEvent[]): MetricRow[] {
 }
 
 /** Главная строка прогноза — та же, что человек видит под кольцом на «Сегодня». */
-function primaryPrediction(mode: Mode, profile: Profile, events: LogEvent[]) {
-  const data = derive(mode, profile);
-  if (data.kind !== "cycle") return null;
+function primaryPrediction(mode: Mode, stage: Stage | undefined, profile: Profile, events: LogEvent[]) {
+  const data = derive(mode, stage, profile);
+  if (data.kind !== "cycle" && data.kind !== "fertility") return null;
 
   const lengths = detectCycleLengths(events);
   const uncertainty = predictionUncertainty(lengths);
@@ -124,12 +125,16 @@ export function CycleScreen() {
   const profile = useAppStore((state) => state.profile[state.mode]);
   const events = useAppStore((state) => state.logEvents[state.mode]);
   const setTab = useAppStore((state) => state.setTab);
+  const stage = stageOf(profile);
 
   const [detail, setDetail] = useState<Detail>(null);
 
-  const prediction = useMemo(() => primaryPrediction(mode, profile, events), [mode, profile, events]);
-  const patterns = useMemo(() => computePatterns(events, mode), [events, mode]);
-  const metrics = useMemo(() => buildMetrics(mode, events), [mode, events]);
+  const prediction = useMemo(
+    () => primaryPrediction(mode, stage, profile, events),
+    [mode, stage, profile, events],
+  );
+  const patterns = useMemo(() => computePatterns(events, mode, stage), [events, mode, stage]);
+  const metrics = useMemo(() => buildMetrics(mode, stage, events), [mode, stage, events]);
   const tier = patternTier(events.length);
 
   if (detail === "prediction") {

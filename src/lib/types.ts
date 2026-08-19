@@ -1,19 +1,23 @@
-export type Mode =
+export type Mode = "cycle" | "fertility" | "motherhood" | "menopause";
+
+export const MODES: Mode[] = ["cycle", "fertility", "motherhood", "menopause"];
+
+export type MotherhoodStage = "pregnancy" | "postpartum";
+export type MenopauseStage = "perimenopause" | "menopause";
+/** Второй уровень внутри motherhood/menopause. У cycle/fertility стадии нет. */
+export type Stage = MotherhoodStage | MenopauseStage;
+
+export const MOTHERHOOD_STAGES: MotherhoodStage[] = ["pregnancy", "postpartum"];
+export const MENOPAUSE_STAGES: MenopauseStage[] = ["perimenopause", "menopause"];
+
+/** Легаси-значения mode из версий до свода 6→4 — используются только в миграции. */
+export type LegacyMode =
   | "cycle"
   | "ttc"
   | "pregnancy"
   | "postpartum"
   | "perimenopause"
   | "menopause";
-
-export const MODES: Mode[] = [
-  "cycle",
-  "ttc",
-  "pregnancy",
-  "postpartum",
-  "perimenopause",
-  "menopause",
-];
 
 /**
  * «История» убрана: календарь переехал в «Сегодня», где он и нужен — при отметке.
@@ -64,6 +68,9 @@ export interface PrivacyState {
 export interface UndoBanner {
   from: Mode;
   to: Mode;
+  /** Заполнено, если вместе со сменой режима менялась и стадия. */
+  fromStage?: Stage;
+  toStage?: Stage;
 }
 
 export interface AppData {
@@ -76,3 +83,9 @@ export interface AppData {
 }
 
 export type ConfidenceTier = "LOW" | "MEDIUM" | "HIGH";
+
+/** Стадия — часть профиля текущего режима (см. Profile[key: string]). */
+export function stageOf(profile: Profile | undefined): Stage | undefined {
+  const value = profile?.stage;
+  return typeof value === "string" ? (value as Stage) : undefined;
+}

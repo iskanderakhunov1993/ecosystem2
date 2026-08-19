@@ -12,8 +12,8 @@ import {
   type LocationId,
 } from "@/data/modes.config";
 import { useAppStore } from "@/store/appStore";
-import type { LogEvent, Mode } from "@/lib/types";
-import { getReadiness, intensityFor, isSafeMode } from "./readiness";
+import type { LogEvent, Mode, Stage } from "@/lib/types";
+import { getReadiness, intensityFor, isSafeStage } from "./readiness";
 import { MeditationTab } from "./MeditationTab";
 
 const LEVEL_LABEL: Record<"low" | "medium" | "high", string> = {
@@ -29,25 +29,24 @@ interface ExerciseState extends ExerciseTemplate {
 
 interface WorkoutSheetProps {
   mode: Mode;
+  stage?: Stage;
   events: LogEvent[];
   onClose: () => void;
 }
 
-export function WorkoutSheet({ mode, events, onClose }: WorkoutSheetProps) {
+export function WorkoutSheet({ mode, stage, events, onClose }: WorkoutSheetProps) {
   const addSession = useAppStore((state) => state.addSession);
 
   const [tab, setTab] = useState<"workout" | "meditation">("workout");
   const [location, setLocation] = useState<LocationId | null>(null);
   const [plan, setPlan] = useState<ExerciseState[] | null>(null);
 
-  const safe = isSafeMode(mode);
+  const safe = isSafeStage(stage);
   const readiness = getReadiness(events);
 
   const generate = () => {
     if (!location) return;
-    const pool = safe
-      ? SAFE_POOLS[mode as "pregnancy" | "postpartum"][location]
-      : WORKOUT_POOLS[intensityFor(readiness.level)][location];
+    const pool = safe ? SAFE_POOLS[stage][location] : WORKOUT_POOLS[intensityFor(readiness.level)][location];
     setPlan(pool.map((item) => ({ ...item, status: "pending", note: "" })));
   };
 
@@ -87,7 +86,7 @@ export function WorkoutSheet({ mode, events, onClose }: WorkoutSheetProps) {
       </div>
 
       {tab === "meditation" ? (
-        <MeditationTab mode={mode} onDone={onClose} />
+        <MeditationTab mode={mode} stage={stage} onDone={onClose} />
       ) : (
         <div className="space-y-6">
           <div

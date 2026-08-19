@@ -3,7 +3,7 @@ import { Icon, type IconName } from "@/data/icons";
 import { MODE_LABELS } from "@/data/modes.config";
 import { formatDate } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
-import type { TabId } from "@/lib/types";
+import { stageOf, type TabId } from "@/lib/types";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { CycleScreen } from "@/features/cycle/CycleScreen";
 import { LogSheet } from "@/features/today/LogSheet";
@@ -31,6 +31,7 @@ export function AppShell() {
   const anonymous = useAppStore((state) => state.privacy.anonymousMode);
   const persistent = useAppStore((state) => state.persistent);
   const events = useAppStore((state) => state.logEvents[state.mode]);
+  const stage = useAppStore((state) => stageOf(state.profile[state.mode]));
 
   useEffect(() => {
     document.title = anonymous ? "Заметки" : "Livi";
@@ -101,13 +102,14 @@ export function AppShell() {
         <LogSheet
           key={`${mode}-${sheet.chipId}-${sheet.date ?? 0}`}
           mode={mode}
+          stage={stage}
           chipId={sheet.chipId}
           date={sheet.date}
           onClose={closeSheet}
         />
       )}
       {sheet?.type === "activity" && (
-        <WorkoutSheet mode={mode} events={events} onClose={closeSheet} />
+        <WorkoutSheet mode={mode} stage={stage} events={events} onClose={closeSheet} />
       )}
       {sheet?.type === "gate" && <LifeStageGate onClose={closeSheet} />}
       {sheet?.type === "settings" && <SettingsSheet onClose={closeSheet} />}

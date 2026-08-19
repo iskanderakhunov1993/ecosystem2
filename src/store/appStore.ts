@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import * as db from "@/db/indexedDb";
-import { MODE_ACCENTS } from "@/data/modes.config";
+import { getAccent } from "@/data/modes.config";
 import type {
   AppData,
   LogEvent,
@@ -8,9 +8,11 @@ import type {
   PrivacyState,
   Profile,
   Session,
+  Stage,
   TabId,
   UndoBanner,
 } from "@/lib/types";
+import { stageOf } from "@/lib/types";
 
 export type SheetState =
   | { type: "log"; chipId: string; date?: number }
@@ -39,6 +41,8 @@ interface AppState extends AppData {
 
   /** Переключение режима — только через Life-Stage Gate. */
   switchMode: (target: Mode, profile: Profile) => void;
+  /** Смена стадии внутри текущего mode (motherhood/menopause) — тот же Gate, второй шаг. */
+  setStage: (stage: Stage) => void;
   undoModeSwitch: () => void;
   dismissUndoBanner: () => void;
 
@@ -53,10 +57,10 @@ function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Единственное место, где режим влияет на палитру. */
-export function applyAccent(mode: Mode): void {
+/** Единственное место, где режим (и стадия) влияют на палитру. */
+export function applyAccent(mode: Mode, stage?: Stage): void {
   if (typeof document === "undefined") return;
-  const { accent, accentText, accentSoft } = MODE_ACCENTS[mode];
+  const { accent, accentText, accentSoft } = getAccent(mode, stage);
   const root = document.documentElement;
   root.style.setProperty("--accent", accent);
   root.style.setProperty("--accent-text", accentText);
@@ -83,7 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       persistent = false;
     }
-    applyAccent(data.mode);
+    applyAccent(data.mode, stageOf(data.profile[data.mode]));
     set({ ...data, persistent, hydrated: true });
   },
 
@@ -117,7 +121,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTab: "today",
       profile: { ...get().profile, [mode]: next },
     });
-    applyAccent(mode);
+    applyAccent(mode, stageOf(next));
     void Promise.all([
       db.putMeta("mode", mode),
       db.putMeta("onboarded", true),
@@ -134,12 +138,32 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTab: "today",
       sheet: null,
       profile: { ...get().profile, [target]: next },
-      undoBanner: { from, to: target },
+      undoBanner: {
+        from,
+        to: target,
+        fromStage: stageOf(get().profile[from]),
+        toStage: stageOf(next),
+      },
     });
-    applyAccent(target);
+    applyAccent(target, stageOf(next));
     void Promise.all([db.putMeta("mode", target), db.putProfile(target, next)]).catch(
       () => undefined,
     );
+  },
+
+  setStage: (stage) => {
+    const mode = get().mode;
+    const current = get().profile[mode];
+    const fromStage = stageOf(current);
+    if (fromStage === stage) return;
+    const next: Profile = { ...current, stage, updatedAt: Date.now() };
+    set({
+      profile: { ...get().profile, [mode]: next },
+      sheet: null,
+      undoBanner: { from: mode, to: mode, fromStage, toStage: stage },
+    });
+    applyAccent(mode, stage);
+    void db.putProfile(mode, next).catch(() => undefined);
   },
 
   undoModeSwitch: () => {
@@ -147,8 +171,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!banner) return;
     // Профиль режима, из которого откатываемся, сохраняется — при повторном
     // переключении поля уже будут заполнены.
+    if (banner.from === banner.to) {
+      // Откат смены стадии внутри того же режима.
+      const current = get().profile[banner.from];
+      const reverted: Profile = { ...current, stage: banner.fromStage, updatedAt: Date.now() };
+      set({ profile: { ...get().profile, [banner.from]: reverted }, undoBanner: null });
+      applyAccent(banner.from, banner.fromStage);
+      void db.putProfile(banner.from, reverted).catch(() => undefined);
+      return;
+    }
     set({ mode: banner.from, activeTab: "today", undoBanner: null });
-    applyAccent(banner.from);
+    applyAccent(banner.from, banner.fromStage);
     void db.putMeta("mode", banner.from).catch(() => undefined);
   },
 

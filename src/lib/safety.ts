@@ -1,6 +1,6 @@
 import { MODE_LABELS } from "@/data/modes.config";
 import { dateKey } from "@/lib/derive";
-import type { LogEvent, Mode } from "@/lib/types";
+import type { LogEvent, Mode, Stage } from "@/lib/types";
 
 /**
  * Мягкий triage-слой поверх логов: не диагноз и не медицинское заключение,
@@ -32,19 +32,24 @@ function distinctDays(events: LogEvent[]): number {
   return new Set(events.map((event) => dateKey(event.timestamp))).size;
 }
 
-export function evaluateSafety(mode: Mode, events: LogEvent[], now = Date.now()): SafetyAdvisory[] {
+export function evaluateSafety(
+  mode: Mode,
+  stage: Stage | undefined,
+  events: LogEvent[],
+  now = Date.now(),
+): SafetyAdvisory[] {
   const advisories: SafetyAdvisory[] = [];
   const recent = withinWindow(events, now);
 
   const heavyFlow = recent.filter((event) => event.chipId === "flow" && event.summary.includes("Обильные"));
-  if ((mode === "pregnancy" || mode === "postpartum") && heavyFlow.length > 0) {
+  if ((stage === "pregnancy" || stage === "postpartum") && heavyFlow.length > 0) {
     advisories.push({
       id: "heavy-flow-critical",
       tier: "discuss_soon",
       title: "Обильное кровотечение",
       message: `Обильные выделения в режиме «${MODE_LABELS[mode]}» — ${CLINICIAN_PHRASE}, желательно в ближайшее время.`,
     });
-  } else if ((mode === "cycle" || mode === "ttc" || mode === "perimenopause") && distinctDays(heavyFlow) >= 3) {
+  } else if ((mode === "cycle" || mode === "fertility" || stage === "perimenopause") && distinctDays(heavyFlow) >= 3) {
     advisories.push({
       id: "heavy-flow-persistent",
       tier: "notice",

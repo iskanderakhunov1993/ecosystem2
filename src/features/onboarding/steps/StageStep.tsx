@@ -1,32 +1,31 @@
 import { Icon } from "@/data/icons";
-import { CORE_MODES, MODE_ACCENTS } from "@/data/modes.config";
-import type { Mode } from "@/lib/types";
+import { STAGE_ACCENTS, STAGE_OPTIONS } from "@/data/modes.config";
+import type { Stage } from "@/lib/types";
 
-interface GoalStepProps {
-  value: Mode | null;
-  onChange: (mode: Mode) => void;
+interface StageStepProps {
+  mode: "motherhood" | "menopause";
+  value: Stage | null;
+  onChange: (stage: Stage) => void;
 }
 
-export function GoalStep({ value, onChange }: GoalStepProps) {
+export function StageStep({ mode, value, onChange }: StageStepProps) {
   return (
     <div className="pt-2">
-      <h1 className="font-display text-[24px] font-semibold leading-tight text-text">
-        Что привело тебя в Livi?
-      </h1>
+      <h1 className="font-display text-[24px] font-semibold leading-tight text-text">Уточни стадию</h1>
       <p className="mt-2 text-[13px] leading-snug text-text-dim">
-        От этого зависит стартовый режим — потом его можно поменять по жизненному событию.
+        Это меняет, что мы показываем и спрашиваем каждый день. Можно изменить позже в профиле.
       </p>
 
       <div className="mt-5 space-y-2.5">
-        {CORE_MODES.map((stage) => {
-          const active = value === stage.mode;
-          const accent = MODE_ACCENTS[stage.mode];
+        {STAGE_OPTIONS[mode].map((option) => {
+          const active = value === option.stage;
+          const accent = STAGE_ACCENTS[option.stage];
           return (
             <button
-              key={stage.mode}
+              key={option.stage}
               type="button"
               aria-pressed={active}
-              onClick={() => onChange(stage.mode)}
+              onClick={() => onChange(option.stage)}
               className={`flex w-full items-center gap-3.5 rounded-card border p-4 text-left transition active:scale-[0.99] ${
                 active ? "border-current" : "border-border bg-surface"
               }`}
@@ -39,8 +38,8 @@ export function GoalStep({ value, onChange }: GoalStepProps) {
                 <Icon name="spark" size={18} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-medium text-text">{stage.title}</span>
-                <span className="mt-0.5 block text-[12px] text-text-dim">{stage.hint}</span>
+                <span className="block text-[15px] font-medium text-text">{option.title}</span>
+                <span className="mt-0.5 block text-[12px] text-text-dim">{option.hint}</span>
               </span>
               {active && (
                 <span style={{ color: accent.accentText }}>

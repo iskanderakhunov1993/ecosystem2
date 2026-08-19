@@ -13,6 +13,7 @@ import { Icon } from "@/data/icons";
 import { MODE_LABELS } from "@/data/modes.config";
 import { dateKey } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
+import { stageOf } from "@/lib/types";
 
 export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const mode = useAppStore((state) => state.mode);
@@ -25,12 +26,13 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const setAnonymousMode = useAppStore((state) => state.setAnonymousMode);
   const wipeAllData = useAppStore((state) => state.wipeAllData);
 
-  const [draft, setDraft] = useState<FieldDraft>(() => initialDraft(mode, profile));
+  const stage = stageOf(profile);
+  const [draft, setDraft] = useState<FieldDraft>(() => initialDraft(mode, stage, profile));
   const [saved, setSaved] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
 
   const save = () => {
-    saveProfile(mode, draftToProfile(mode, draft));
+    saveProfile(mode, draftToProfile(mode, stage, draft));
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
   };
@@ -60,10 +62,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           рамках текущего режима.
         </p>
         <div className="mt-4">
-          <ProfileFields mode={mode} draft={draft} onChange={setDraft} />
+          <ProfileFields mode={mode} stage={stage} draft={draft} onChange={setDraft} />
         </div>
         <div className="mt-4">
-          <Button disabled={!isDraftComplete(mode, draft)} onClick={save}>
+          <Button disabled={!isDraftComplete(mode, stage, draft)} onClick={save}>
             {saved ? "Сохранено" : "Сохранить изменения"}
           </Button>
         </div>

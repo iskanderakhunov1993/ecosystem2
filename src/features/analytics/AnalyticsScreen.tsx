@@ -7,7 +7,8 @@ import { KpiCard } from "@/components/KpiCard";
 import { LineChart } from "@/components/LineChart";
 import { derive } from "@/lib/derive";
 import { useAppStore } from "@/store/appStore";
-import type { LogEvent, Mode, Profile, Session } from "@/lib/types";
+import { stageOf } from "@/lib/types";
+import type { LogEvent, Mode, Profile, Session, Stage } from "@/lib/types";
 import {
   activeDays,
   detectCycleLengths,
@@ -25,12 +26,13 @@ interface Kpi {
 }
 
 /** KPI из профиля показываем сразу — это то, что пользователь ввёл сам. */
-function modeKpis(mode: Mode, profile: Profile, events: LogEvent[]): Kpi[] {
-  const data = derive(mode, profile);
+function modeKpis(mode: Mode, stage: Stage | undefined, profile: Profile, events: LogEvent[]): Kpi[] {
+  const data = derive(mode, stage, profile);
   const cycleLengths = detectCycleLengths(events);
 
   switch (data.kind) {
-    case "cycle": {
+    case "cycle":
+    case "fertility": {
       const regularity =
         cycleLengths.length >= 2
           ? `${Math.round(
@@ -79,7 +81,7 @@ function modeKpis(mode: Mode, profile: Profile, events: LogEvent[]): Kpi[] {
   }
 }
 
-function useAnalytics(mode: Mode, events: LogEvent[], sessions: Session[]) {
+function useAnalytics(mode: Mode, stage: Stage | undefined, events: LogEvent[], sessions: Session[]) {
   return useMemo(() => {
     const symptomFreq = labelFrequency(events, ["symptom", "more"]);
     const triggerFreq = labelFrequency(events, ["hotflash"]);
@@ -98,9 +100,9 @@ function useAnalytics(mode: Mode, events: LogEvent[], sessions: Session[]) {
       weight,
       weightWeekly,
       cycleLengths,
-      isCycleLike: mode === "cycle" || mode === "ttc" || mode === "perimenopause",
+      isCycleLike: mode === "cycle" || mode === "fertility" || stage === "perimenopause",
     };
-  }, [mode, events, sessions]);
+  }, [mode, stage, events, sessions]);
 }
 
 export function AnalyticsScreen() {
@@ -108,9 +110,10 @@ export function AnalyticsScreen() {
   const profile = useAppStore((state) => state.profile[state.mode]);
   const events = useAppStore((state) => state.logEvents[state.mode]);
   const sessions = useAppStore((state) => state.sessions[state.mode]);
+  const stage = stageOf(profile);
 
-  const stats = useAnalytics(mode, events, sessions);
-  const kpis = useMemo(() => modeKpis(mode, profile, events), [mode, profile, events]);
+  const stats = useAnalytics(mode, stage, events, sessions);
+  const kpis = useMemo(() => modeKpis(mode, stage, profile, events), [mode, stage, profile, events]);
 
   return (
     <div className="space-y-4">
@@ -144,7 +147,7 @@ export function AnalyticsScreen() {
         />
       )}
 
-      {(mode === "perimenopause" || mode === "menopause") &&
+      {(stage === "perimenopause" || stage === "menopause") &&
         (stats.triggerFreq.length >= 2 ? (
           <Card title="Триггеры приливов">
             <BarList items={stats.triggerFreq.slice(0, 6)} />
@@ -167,7 +170,7 @@ export function AnalyticsScreen() {
         />
       )}
 
-      {mode === "ttc" &&
+      {mode === "fertility" &&
         (stats.bbt.length >= 2 ? (
           <Card title="Базальная температура">
             <LineChart points={stats.bbt} unit="°C" />
@@ -179,7 +182,7 @@ export function AnalyticsScreen() {
           />
         ))}
 
-      {(mode === "pregnancy" || mode === "menopause") &&
+      {(stage === "pregnancy" || stage === "menopause") &&
         (stats.weightWeekly.length >= 2 ? (
           <Card title="Вес по неделям">
             <LineChart points={stats.weightWeekly} unit=" кг" />

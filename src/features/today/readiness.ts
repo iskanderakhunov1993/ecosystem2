@@ -1,5 +1,5 @@
 import { startOfDay } from "@/lib/derive";
-import type { LogEvent, Mode } from "@/lib/types";
+import type { LogEvent, MotherhoodStage, Stage } from "@/lib/types";
 import type { Intensity } from "@/data/modes.config";
 
 export interface Readiness {
@@ -93,6 +93,6 @@ export function intensityFor(level: Readiness["level"]): Intensity {
   return level;
 }
 
-export function isSafeMode(mode: Mode): mode is "pregnancy" | "postpartum" {
-  return mode === "pregnancy" || mode === "postpartum";
+export function isSafeStage(stage: Stage | undefined): stage is MotherhoodStage {
+  return stage === "pregnancy" || stage === "postpartum";
 }

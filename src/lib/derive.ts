@@ -1,4 +1,4 @@
-import type { Mode, Profile } from "@/lib/types";
+import type { Mode, Profile, Stage } from "@/lib/types";
 
 /**
  * Профиль хранит значения на момент ввода (updatedAt). Чтобы дашборд не
@@ -50,6 +50,11 @@ export interface CycleDerived {
   inFertileWindow: boolean;
 }
 
+/** То же, что CycleDerived — вопрос пользователя другой («попали ли в окно»), поэтому свой kind. */
+export interface FertilityDerived extends Omit<CycleDerived, "kind"> {
+  kind: "fertility";
+}
+
 export interface PregnancyDerived {
   kind: "pregnancy";
   week: number;
@@ -81,6 +86,7 @@ export interface UnknownDerived {
 
 export type Derived =
   | CycleDerived
+  | FertilityDerived
   | PregnancyDerived
   | PostpartumDerived
   | MenopauseDerived
@@ -150,19 +156,32 @@ export function deriveMenopause(profile: Profile, now = Date.now()): MenopauseDe
   return { kind: "menopause", monthsSince };
 }
 
-export function derive(mode: Mode, profile: Profile, now = Date.now()): Derived {
+export function deriveFertility(profile: Profile, now = Date.now()): FertilityDerived {
+  return { ...deriveCycle(profile, now), kind: "fertility" };
+}
+
+export function derive(mode: Mode, stage: Stage | undefined, profile: Profile, now = Date.now()): Derived {
   switch (mode) {
     case "cycle":
-    case "ttc":
       return deriveCycle(profile, now);
-    case "pregnancy":
-      return derivePregnancy(profile, now);
-    case "postpartum":
-      return derivePostpartum(profile, now);
+    case "fertility":
+      return deriveFertility(profile, now);
+    case "motherhood":
+      switch (stage) {
+        case "postpartum":
+          return derivePostpartum(profile, now);
+        case "pregnancy":
+        default:
+          return derivePregnancy(profile, now);
+      }
     case "menopause":
-      return deriveMenopause(profile, now);
-    case "perimenopause":
-      return { kind: "perimenopause", irregularForLabel: str(profile, "irregularFor") };
+      switch (stage) {
+        case "perimenopause":
+          return { kind: "perimenopause", irregularForLabel: str(profile, "irregularFor") };
+        case "menopause":
+        default:
+          return deriveMenopause(profile, now);
+      }
     default:
       return { kind: "unknown" };
   }
